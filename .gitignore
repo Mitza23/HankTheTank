@@ -1,5 +1,7 @@
 #Dataset
-dataset_formatted
+dataset*
+images
+annotations
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
