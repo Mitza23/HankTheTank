@@ -11,3 +11,9 @@ Done. (0.841s)
  The image with the result is saved in: runs\detect\exp3\1.jpg
 Done. (0.728s)
 
+
+Transfer learning
+python train.py --epochs 100 --workers 2 --device 0 --batch-size 8 --data data/hank.yaml --img 640 640 --cfg cfg/training/yolov7-tiny-hank.yaml --weights 'yolov7-tiny.pt' --name csgo-pretrained --hyp data/hyp.scratch.tiny.yaml
+
+From scratch
+python train.py --epochs 100 --workers 4 --device 0 --batch-size 16 --data data/hank.yaml --img 640 640 --cfg cfg/training/yolov7-tiny-hank.yaml --weights ' ' --name csgo-from-scratch --hyp data/hyp.scratch.tiny.yaml
