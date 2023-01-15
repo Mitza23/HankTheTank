@@ -1,5 +1,6 @@
 import os
 import time
+import warnings
 
 import cv2
 import torch
@@ -11,6 +12,8 @@ from utils.datasets import LoadStreams, LoadImages
 from utils.general import check_img_size, check_imshow, non_max_suppression, apply_classifier, \
     scale_coords
 from utils.torch_utils import select_device, load_classifier, time_synchronized
+
+warnings.filterwarnings("ignore")
 
 
 def main():
@@ -25,7 +28,10 @@ def process_folder(folder_path, output_path='test_detect/'):
 
 
 def detect_in_image(input_path, output_path, name):
+    start = time.time()
     bboxes = detect(input_path)
+    end = time.time()
+    print(end - start)
     img = cv2.imread(input_path)
     for box in bboxes:
         img = plot_bounding_box(img, box)
