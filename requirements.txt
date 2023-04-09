@@ -38,11 +38,11 @@ thop  # FLOPs computation
 # pycocotools>=2.0  # COCO mAP
 # roboflow
 
-# Bot requirements
+# Bot requirements for game integration
 pywin32==228
 opencv-contrib-python==4.4.0.42
 pynput==1.7.1
-numpy==1.16.0
+# numpy==1.16.0
 PyAutoGUI==0.9.50
 pygame==2.0.0
 mss==6.0.0
