@@ -1,7 +1,7 @@
 #Dataset
-dataset*
-images
-annotations
+dataset
+dataset/images
+dataset/annotations
 
 # Repo-specific GitIgnore ----------------------------------------------------------------------------------------------
 #*.jpg
