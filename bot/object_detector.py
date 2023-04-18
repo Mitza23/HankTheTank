@@ -16,7 +16,7 @@ from utils.torch_utils import select_device, load_classifier, time_synchronized
 
 class ObjectDetector:
     def __init__(self):
-        self.weights_path = 'best.pt'
+        self.weights_path = '../best.pt'
         self.image_size = 640
         self.confidence_threshold = 0.5
         self.iou_threshold = 0.45
@@ -90,4 +90,7 @@ class ObjectDetector:
 
 if __name__ == '__main__':
     model = ObjectDetector()
+    start = time.time()
     model.detect('../test_images/1.jpg')
+    end = time.time()
+    print(end - start)
