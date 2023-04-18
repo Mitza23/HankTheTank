@@ -21,52 +21,47 @@ class ObjectDetector:
         self.confidence_threshold = 0.5
         self.iou_threshold = 0.45
         self.agnostic_nms = False
+        self.device = select_device('0')
+        self.half = True  # half precision only supported on CUDA
+        # Load model
+        self.model = attempt_load(self.weights_path, map_location=self.device)  # load FP32 model
+        self.stride = int(self.model.stride.max())  # model stride
+        self.image_size = check_img_size(self.image_size, s=self.stride)  # check img_size
 
     def detect(self, source):
         bboxes = []
 
-        # Initialize
-        # set_logging()
-        device = select_device('0')
-        # half = device.type != 'cpu'  # half precision only supported on CUDA
-        half = True
-        # Load model
-        model = attempt_load(self.weights_path, map_location=device)  # load FP32 model
-        stride = int(model.stride.max())  # model stride
-        self.image_size = check_img_size(self.image_size, s=stride)  # check img_size
+        self.model.half()  # to FP16
 
-        model.half()  # to FP16
-
-        dataset = LoadImages(source, img_size=self.image_size, stride=stride)
+        dataset = LoadImages(source, img_size=self.image_size, stride=self.stride)
 
         # Run inference
 
-        model(torch.zeros(1, 3, self.image_size, self.image_size).to(device).type_as(
-            next(model.parameters())))  # run once
+        self.model(torch.zeros(1, 3, self.image_size, self.image_size).to(self.device).type_as(
+            next(self.model.parameters())))  # run once
         old_img_w = old_img_h = self.image_size
         old_img_b = 1
 
         t0 = time.time()
         for path, img, im0s, vid_cap in dataset:
-            img = torch.from_numpy(img).to(device)
-            img = img.half() if half else img.float()  # uint8 to fp16/32
+            img = torch.from_numpy(img).to(self.device)
+            img = img.half() if self.half else img.float()  # uint8 to fp16/32
             img /= 255.0  # 0 - 255 to 0.0 - 1.0
             if img.ndimension() == 3:
                 img = img.unsqueeze(0)
 
             # Warmup
-            if device.type != 'cpu' and (
-                    old_img_b != img.shape[0] or old_img_h != img.shape[2] or old_img_w != img.shape[3]):
+            if old_img_b != img.shape[0] or old_img_h != img.shape[2] or old_img_w != img.shape[3]:
                 old_img_b = img.shape[0]
                 old_img_h = img.shape[2]
                 old_img_w = img.shape[3]
                 for i in range(3):
-                    model(img, augment=False)[0]
+                    self.model(img, augment=False)[0]
 
             # Inference
             t1 = time_synchronized()
             with torch.no_grad():  # Calculating gradients would cause a GPU memory leak
-                pred = model(img, augment=False)[0]
+                pred = self.model(img, augment=False)[0]
             t2 = time_synchronized()
 
             # Apply NMS
@@ -91,3 +86,8 @@ class ObjectDetector:
                         # print(aux)
                         bboxes.append(aux)
         return bboxes
+
+
+if __name__ == '__main__':
+    model = ObjectDetector()
+    model.detect('../test_images/1.jpg')
