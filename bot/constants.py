@@ -1,5 +1,7 @@
 screen_width = 1920
+# screen_width = 3840
 screen_height = 1080
+# screen_height = 2160
 
 fov_width = 96
 fov_height = 96

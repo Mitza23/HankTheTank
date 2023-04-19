@@ -1,17 +1,11 @@
-import os
 import time
-import warnings
 
-import cv2
 import torch
-import torch.backends.cudnn as cudnn
-from numpy import random
 
 from models.experimental import attempt_load
-from utils.datasets import LoadStreams, LoadImages
-from utils.general import check_img_size, check_imshow, non_max_suppression, apply_classifier, \
-    scale_coords
-from utils.torch_utils import select_device, load_classifier, time_synchronized
+from utils.datasets import LoadImages
+from utils.general import check_img_size, non_max_suppression, scale_coords
+from utils.torch_utils import select_device, time_synchronized
 
 
 class ObjectDetector:
@@ -87,10 +81,13 @@ class ObjectDetector:
                         bboxes.append(aux)
         return bboxes
 
+    def test_detection_speed(self):
+        start = time.time()
+        self.detect('../test_images/1.jpg')
+        end = time.time()
+        print(end - start)
+
 
 if __name__ == '__main__':
     model = ObjectDetector()
-    start = time.time()
-    model.detect('../test_images/1.jpg')
-    end = time.time()
-    print(end - start)
+    model.test_detection_speed()
