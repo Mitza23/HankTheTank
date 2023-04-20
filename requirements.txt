@@ -40,7 +40,7 @@ thop  # FLOPs computation
 
 # Bot requirements for game integration
 pywin32==228
-opencv-contrib-python==4.4.0.42
+opencv-python
 pynput==1.7.1
 # numpy==1.16.0
 PyAutoGUI==0.9.50
@@ -48,4 +48,4 @@ pygame==2.0.0
 mss==6.0.0
 keyboard==0.13.5
 mouse==0.7.1
-tensorflow-directml==1.15.3.dev200626
+# tensorflow-directml==1.15.3.dev200626

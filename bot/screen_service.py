@@ -1,6 +1,4 @@
 import ctypes
-import os
-import time
 from ctypes import windll
 
 import pyautogui
@@ -9,42 +7,70 @@ import pynput
 import win32api
 import win32con
 import win32gui
-from mss import mss
+from mss import mss, tools
 
-from constants import fuchsia, NOT_TOPMOST, TOPMOST, WINDOW, screen_width, screen_height, green, blue, fov_width, \
-    fov_height, NO_MOVE, NO_SIZE, CT, T_HEAD, T, CT_HEAD
+from constants import fuchsia, WINDOW, screen_width, screen_height, green, blue, fov_width, \
+    fov_height, CT, T_HEAD, T, CT_HEAD, screen_width_4k, screen_height_4k
+
+
+class RECT(ctypes.Structure):
+    _fields_ = [
+        ('left', ctypes.c_long),
+        ('top', ctypes.c_long),
+        ('right', ctypes.c_long),
+        ('bottom', ctypes.c_long),
+    ]
+
+    def width(self):  return self.right - self.left
+
+    def height(self): return self.bottom - self.top
 
 
 class ScreenService:
     def __init__(self):
         fpsClock = pygame.time.Clock()
         pygame.init()
-        time.sleep(1)
-        self.screen = pygame.display.set_mode((1920, 1080))  # (0, 0) sets the size o the size of the screen
+
+        # self.screen = pygame.display.set_mode((screen_width, screen_height))
+        self.screen = pygame.display.set_mode((0, 0), pygame.NOFRAME)  # (0, 0) sets the size o the size
+        # of the screen
         # # self.screen = pygame.display.set_mode((1920, 1080), pygame.HWSURFACE)  # For borderless, use pygame.NOFRAME
-        self.screen.fill(fuchsia)
+
         hwnd = pygame.display.get_wm_info()[WINDOW]
         win32gui.SetWindowLong(hwnd, win32con.GWL_EXSTYLE,
                                win32gui.GetWindowLong(hwnd, win32con.GWL_EXSTYLE) | win32con.WS_EX_LAYERED)
         win32gui.SetLayeredWindowAttributes(hwnd, win32api.RGB(*fuchsia), 0, win32con.LWA_COLORKEY)
 
         self.SetWindowPos = windll.user32.SetWindowPos
+        self.screen.fill(fuchsia)
         self.always_on_top(True)
+
         self.SendInput = ctypes.windll.user32.SendInput
 
         pyautogui.PAUSE = 0
 
         self.classesNames = [CT, CT_HEAD, T, T_HEAD]
 
-        self.monitor = {"top": 0, "left": 0, "width": screen_width, "height": screen_height}
-        x = 0
-        y = 0
-        os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (x, y)
+        self.monitor = {"top": 0, "left": 0, "width": screen_width_4k, "height": screen_height_4k}
+        # x = 0
+        # y = 0
+        # os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (x, y)
+
+    @staticmethod
+    def onTop(window):
+        SetWindowPos = windll.user32.SetWindowPos
+        GetWindowRect = windll.user32.GetWindowRect
+        rc = RECT()
+        GetWindowRect(window, ctypes.byref(rc))
+        SetWindowPos(window, -1, rc.left, rc.top, 0, 0, 0x0001)
 
     def always_on_top(self, yesOrNo):
-        z_order = (NOT_TOPMOST, TOPMOST)[yesOrNo]  # choose a flag according to bool
-        hwnd = pygame.display.get_wm_info()[WINDOW]  # handle to the window
-        self.SetWindowPos(hwnd, z_order, 0, 0, 0, 0, NO_MOVE | NO_SIZE)
+        # win32gui.SetWindowPos(pygame.display.get_wm_info()['window'], win32con.HWND_TOPMOST, 0, 0, 0, 0,
+        #                       win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
+        # z_order = (NOT_TOPMOST, TOPMOST)[yesOrNo]  # choose a flag according to bool
+        # hwnd = pygame.display.get_wm_info()[WINDOW]  # handle to the window
+        # self.SetWindowPos(hwnd, z_order, 0, 0, 0, 0, NO_MOVE | NO_SIZE)
+        self.onTop(pygame.display.get_wm_info()['window'])
 
     def set_crosshair(self, x, y):
         x = 1 + int(x * 65536. / screen_width)
@@ -92,41 +118,62 @@ class ScreenService:
             # self.set_crosshair((10 * i) % screen_width, (40 * i) % screen_height)
             pygame.display.update()
 
+    # def test_screen_capture(self):
+    #     # Create an mss screenshot object
+    #     with mss() as sct:
+    #         # Capture a screenshot of the entire screen
+    #         screenshot = sct.grab(self.monitor)
+    #
+    #         # Convert the screenshot to a Pygame surface
+    #         pygame_screenshot = pygame.image.frombuffer(screenshot.rgb, screenshot.size, "RGB")
+    #
+    #         # Blit the Pygame surface onto the screen
+    #         self.screen.blit(pygame_screenshot, (0, 0))
+    #
+    #     # Update the display
+    #     pygame.display.update()
+    #
+    #     # Wait for the user to close the window
+    #     while True:
+    #         for event in pygame.event.get():
+    #             if event.type == pygame.QUIT:
+    #                 pygame.quit()
+    #                 quit()
+
     def test_screen_capture(self):
-        # Set the screen size
-        screen_size = (screen_width, screen_height)
-
-        # Create the Pygame screen
-        # screen = pygame.display.set_mode(screen_size)
-
-        # Create an mss screenshot object
-        with mss() as sct:
-            # Capture a screenshot of the entire screen
-            monitor = {"top": 0, "left": 0, "width": screen_width, "height": screen_height}
-            screenshot = sct.grab(monitor)
-
-            # Convert the screenshot to a Pygame surface
-            pygame_screenshot = pygame.image.frombuffer(screenshot.rgb, screenshot.size, "RGB")
-
-            # Blit the Pygame surface onto the screen
-            self.screen.blit(pygame_screenshot, (0, 0))
-
-        # Update the display
-        pygame.display.update()
-
-        # Wait for the user to close the window
-        while True:
+        # Main while loop for the program
+        done = 0
+        count = 0
+        while not done:
+            # Accessing the event if any occurred
             for event in pygame.event.get():
+                # Checking if quit button is pressed or not
                 if event.type == pygame.QUIT:
-                    pygame.quit()
-                    quit()
-
+                    #  If quit then store true
+                    done = 1
+                    # Checking if the escape button is pressed or not
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_SPACE:
+                        with mss() as sct:
+                            # Capture a screenshot of the entire screen
+                            screenshot = sct.grab(self.monitor)
+                            output = f'sct-{count}.png'
+                            tools.to_png(screenshot.rgb, screenshot.size, output=output)
+                            print(output)
+                            count += 1
+                    # If the escape button  is pressed then store true in the variable
+                    if event.key == pygame.K_ESCAPE:
+                        done = 1
+            # Transparent background
+            self.screen.fill(fuchsia)
+            #  Calling the show_text function
+            #  Checking for the update in the display
+            pygame.display.update()
 
 if __name__ == '__main__':
     service = ScreenService()
     # service.test_screen_manipulation()
     service.test_screen_capture()
-
 #
 # # Initialize Pygame
 # pygame.init()

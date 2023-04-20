@@ -1,7 +1,7 @@
 screen_width = 1920
-# screen_width = 3840
+screen_width_4k = 3840
 screen_height = 1080
-# screen_height = 2160
+screen_height_4k = 2160
 
 fov_width = 96
 fov_height = 96
