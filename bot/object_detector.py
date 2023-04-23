@@ -1,6 +1,5 @@
 import time
 
-import cv2
 import torch
 
 from models.experimental import attempt_load
@@ -143,8 +142,9 @@ class ObjectDetector:
 
     def test_detection_speed(self):
         start = time.time()
-        frame = cv2.imread('../test_images/1.jpg')
-        self.detect_frame(frame)
+        self.detect_from_source('../test_images/1.jpg')
+        # frame = cv2.imread('../test_images/1.jpg')
+        # self.detect_frame(frame)
         end = time.time()
         print(end - start)
 

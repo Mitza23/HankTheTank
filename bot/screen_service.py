@@ -1,4 +1,5 @@
 import ctypes
+import time
 from ctypes import windll
 
 import pyautogui
@@ -10,7 +11,7 @@ import win32gui
 from mss import mss, tools
 
 from constants import fuchsia, WINDOW, screen_width, screen_height, green, blue, fov_width, \
-    fov_height, CT, T_HEAD, T, CT_HEAD, screen_width_4k, screen_height_4k
+    fov_height, CT, T_HEAD, T, CT_HEAD, NOT_TOPMOST, NO_MOVE, NO_SIZE, TOPMOST
 
 
 class RECT(ctypes.Structure):
@@ -30,9 +31,11 @@ class ScreenService:
     def __init__(self):
         fpsClock = pygame.time.Clock()
         pygame.init()
-
-        # self.screen = pygame.display.set_mode((screen_width, screen_height))
-        self.screen = pygame.display.set_mode((0, 0), pygame.NOFRAME)  # (0, 0) sets the size o the size
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
+        # self.screen = pygame.display.set_mode((screen_width_4k, screen_height_4k), pygame.NOFRAME)  # (0, 0) sets the size o the size
+        # self.screen = pygame.display.set_mode((0, 0), pygame.NOFRAME)  # (0, 0) sets the size o the size
         # of the screen
         # # self.screen = pygame.display.set_mode((1920, 1080), pygame.HWSURFACE)  # For borderless, use pygame.NOFRAME
 
@@ -43,6 +46,7 @@ class ScreenService:
 
         self.SetWindowPos = windll.user32.SetWindowPos
         self.screen.fill(fuchsia)
+        pygame.display.update()
         self.always_on_top(True)
 
         self.SendInput = ctypes.windll.user32.SendInput
@@ -51,30 +55,33 @@ class ScreenService:
 
         self.classesNames = [CT, CT_HEAD, T, T_HEAD]
 
-        self.monitor = {"top": 0, "left": 0, "width": screen_width_4k, "height": screen_height_4k}
+        self.monitor = {"top": 0, "left": 0, "width": self.screen_width, "height": self.screen_height}
         # x = 0
         # y = 0
         # os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (x, y)
 
-    @staticmethod
-    def onTop(window):
-        SetWindowPos = windll.user32.SetWindowPos
-        GetWindowRect = windll.user32.GetWindowRect
-        rc = RECT()
-        GetWindowRect(window, ctypes.byref(rc))
-        SetWindowPos(window, -1, rc.left, rc.top, 0, 0, 0x0001)
+    # @staticmethod
+    # def onTop(window):
+    #     SetWindowPos = windll.user32.SetWindowPos
+    #     GetWindowRect = windll.user32.GetWindowRect
+    #     rc = RECT()
+    #     GetWindowRect(window, ctypes.byref(rc))
+    #     SetWindowPos(window, -1, rc.left, rc.top, 0, 0, 0x0001)
 
     def always_on_top(self, yesOrNo):
-        # win32gui.SetWindowPos(pygame.display.get_wm_info()['window'], win32con.HWND_TOPMOST, 0, 0, 0, 0,
-        #                       win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
-        # z_order = (NOT_TOPMOST, TOPMOST)[yesOrNo]  # choose a flag according to bool
-        # hwnd = pygame.display.get_wm_info()[WINDOW]  # handle to the window
-        # self.SetWindowPos(hwnd, z_order, 0, 0, 0, 0, NO_MOVE | NO_SIZE)
-        self.onTop(pygame.display.get_wm_info()['window'])
+        win32gui.SetWindowPos(pygame.display.get_wm_info()['window'], win32con.HWND_TOPMOST, 0, 0, 0, 0,
+                              win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
+        z_order = (NOT_TOPMOST, TOPMOST)[yesOrNo]  # choose a flag according to bool
+        hwnd = pygame.display.get_wm_info()[WINDOW]  # handle to the window
+        self.SetWindowPos(hwnd, z_order, 0, 0, 0, 0, NO_MOVE | NO_SIZE)
+
+    def get_crosshair(self):
+        cur_x, cur_y = pyautogui.position()
+        return cur_x, cur_y
 
     def set_crosshair(self, x, y):
-        x = 1 + int(x * 65536. / screen_width)
-        y = 1 + int(y * 65536. / screen_height)
+        x = 1 + int(x * 65536. / self.screen_width)
+        y = 1 + int(y * 65536. / self.screen_height)
         extra = ctypes.c_ulong(0)
         ii_ = pynput._util.win32.INPUT_union()
         ii_.mi = pynput._util.win32.MOUSEINPUT(x, y, 0, (0x0001 | 0x8000), 0,
@@ -91,20 +98,28 @@ class ScreenService:
 
     def draw_box(self, bboxes, box_text='', box_color=green, text_color=blue):
         box_color_list = list(box_color)
+        # Display FOV
+        self.draw_fov()
+
         for box in bboxes:
-            x, y, w, h = int(box[0]), int(box[1]), int(box[2]), int(box[3])
+            x, y, w, h = int(box[0]), int(box[1]), int(box[2] - box[0]), int(box[3] - box[1])
             if box_text != '':
-                self.draw_text(box_text, x + (screen_width / 2 - fov_width / 2),
-                               y - 10 + (screen_height / 2 - fov_height / 2),
+                self.draw_text(box_text, x + (self.screen_width / 2 - fov_width / 2),
+                               y - 10 + (self.screen_height / 2 - fov_height / 2),
                                background_color=box_color, text_color=text_color)
-            pygame.draw.rect(self.screen, box_color_list,
-                             [x + (screen_width / 2 - fov_width / 2), y + (screen_height / 2 - fov_height / 2), w, h],
-                             1)
+            # pygame.draw.rect(self.screen, box_color_list,
+            #                  [x + (self.screen_width / 2 - fov_width / 2),
+            #                   y + (self.screen_height / 2 - fov_height / 2), w, h],
+            #                  1)
+            pygame.draw.rect(self.screen, box_color_list, [x, y, w, h], 1)
+            pygame.display.update()
 
     def draw_fov(self):
         pygame.draw.rect(self.screen, [0, 255, 0],
-                         [screen_width / 2 - fov_width / 2, screen_height / 2 - fov_height / 2, fov_width, fov_height],
+                         [self.screen_width / 2 - fov_width / 2, self.screen_height / 2 - fov_height / 2, fov_width,
+                          fov_height],
                          1)
+        pygame.display.update()
 
     def grab_frame(self):
         with mss() as sct:
@@ -112,10 +127,13 @@ class ScreenService:
         return screenshot
 
     def test_screen_manipulation(self):
+        pygame.display.update()
+        self.draw_box([[929, 565, 962, 597, 81, 1], [907, 562, 1000, 735, 80, 0]])
+
         for i in range(200):
             self.draw_text("TEST" + str(i), 150, 25, background_color=fuchsia, text_color=green, text_size=32)
-            self.draw_box([[(300 + 10 * i) % screen_width, (400 + 10 * i) % screen_height, 100, 50]])
-            # self.set_crosshair((10 * i) % screen_width, (40 * i) % screen_height)
+            self.draw_box([[(300 + 10 * i) % self.screen_width, (400 + 10 * i) % self.screen_height, 100, 50]])
+            # self.set_crosshair((10 * i) % self.screen_width, (40 * i) % self.screen_height)
             pygame.display.update()
 
     # def test_screen_capture(self):
@@ -170,10 +188,43 @@ class ScreenService:
             #  Checking for the update in the display
             pygame.display.update()
 
+    def test_mouse_movement(self):
+        self.set_crosshair(0, 0)
+        time.sleep(1)
+        self.set_crosshair(500, 500)
+        print(self.get_crosshair())
+        time.sleep(1)
+        self.set_crosshair(1000, 1000)
+        print(self.get_crosshair())
+        time.sleep(1)
+        self.set_crosshair(1100, 1000)
+        print(self.get_crosshair())
+        time.sleep(2)
+        self.set_crosshair(2000, 2000)
+        print(self.get_crosshair())
+        time.sleep(1)
+        self.set_crosshair(3740, 2000)
+        print(self.get_crosshair())
+        time.sleep(3)
+        self.set_crosshair(3840, 2160)
+        print(self.get_crosshair())
+        time.sleep(1)
+
+    def test_bbox_draw(self):
+        self.draw_box([[929, 565, 962, 597, 81, 1], [907, 562, 1000, 735, 80, 0]], "CT")
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    quit()
+
+
 if __name__ == '__main__':
     service = ScreenService()
+    service.test_bbox_draw()
     # service.test_screen_manipulation()
-    service.test_screen_capture()
+    # service.test_screen_capture()
+    # service.test_mouse_movement()
 #
 # # Initialize Pygame
 # pygame.init()

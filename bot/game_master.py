@@ -20,11 +20,14 @@ class GameMaster:
         frame = self.screen_service.grab_frame()
         output = 'test.png'
         frame = tools.to_png(frame.rgb, frame.size, output=output)
-        bbox = self.object_detector.detect_from_source(output)
-        print(bbox)
-        self.screen_service.set_crosshair(bbox[0][0], bbox[0][1])
+        bboxes = self.object_detector.detect_from_source(output)
+        print(bboxes)
+
+        self.screen_service.draw_box(bboxes)
+        self.screen_service.set_crosshair(bboxes[0][0], bboxes[0][1])
         end = time.time()
         print(end - start)
+        time.sleep(5)
         pygame.quit()
         quit()
 
