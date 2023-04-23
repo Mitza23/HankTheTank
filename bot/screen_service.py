@@ -121,9 +121,21 @@ class ScreenService:
                          1)
         pygame.display.update()
 
+    # @staticmethod
+    # def mss_to_cv2(screen):
+    #     # Extract the BGRA color array from the mss Screenshot
+    #     img = np.array(screen)
+    #     # Convert BGRA to BGR format used by OpenCV
+    #     img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+    #     return img
+
     def grab_frame(self):
         with mss() as sct:
             screenshot = sct.grab(self.monitor)
+        # # Convert the ScreenShot to a data type accepted by th model
+        # screenshot = np.array(screenshot)
+        # # Convert BGRA to BGR format used by OpenCV
+        # screenshot = cv2.cvtColor(screenshot, cv2.COLOR_BGRA2BGR)
         return screenshot
 
     def test_screen_manipulation(self):

@@ -1,9 +1,10 @@
 import time
 
+import numpy as np
 import torch
 
 from models.experimental import attempt_load
-from utils.datasets import LoadImages
+from utils.datasets import LoadImages, letterbox
 from utils.general import check_img_size, non_max_suppression, scale_coords
 from utils.torch_utils import select_device, time_synchronized
 
@@ -81,63 +82,64 @@ class ObjectDetector:
                         bboxes.append(aux)
         return bboxes
 
-    def detect_frame(self, frame):
+    def detect_in_frame(self, frame_to_process):
         bboxes = []
 
         self.model.half()  # to FP16
 
-        dataset = LoadImages(frame, img_size=self.image_size, stride=self.stride)
+        # Prepare frame
+        img = img = letterbox(frame_to_process, self.image_size, stride=self.stride)[0]
+
+        # Convert
+        img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
+        img = np.ascontiguousarray(img)
 
         # Run inference
-
         self.model(torch.zeros(1, 3, self.image_size, self.image_size).to(self.device).type_as(
             next(self.model.parameters())))  # run once
         old_img_w = old_img_h = self.image_size
         old_img_b = 1
 
         t0 = time.time()
-        for path, img, im0s, vid_cap in dataset:
-            img = torch.from_numpy(img).to(self.device)
-            img = img.half() if self.half else img.float()  # uint8 to fp16/32
-            img /= 255.0  # 0 - 255 to 0.0 - 1.0
-            if img.ndimension() == 3:
-                img = img.unsqueeze(0)
 
-            # Warmup
-            if old_img_b != img.shape[0] or old_img_h != img.shape[2] or old_img_w != img.shape[3]:
-                old_img_b = img.shape[0]
-                old_img_h = img.shape[2]
-                old_img_w = img.shape[3]
-                for i in range(3):
-                    self.model(img, augment=False)[0]
+        img = torch.from_numpy(img).to(self.device)
+        img = img.half() if self.half else img.float()  # uint8 to fp16/32
+        img /= 255.0  # 0 - 255 to 0.0 - 1.0
+        if img.ndimension() == 3:
+            img = img.unsqueeze(0)
 
-            # Inference
-            t1 = time_synchronized()
-            with torch.no_grad():  # Calculating gradients would cause a GPU memory leak
-                pred = self.model(img, augment=False)[0]
-            t2 = time_synchronized()
+        # Warmup
+        if old_img_b != img.shape[0] or old_img_h != img.shape[2] or old_img_w != img.shape[3]:
+            old_img_b = img.shape[0]
+            old_img_h = img.shape[2]
+            old_img_w = img.shape[3]
+            for i in range(3):
+                self.model(img, augment=False)[0]
 
-            # Apply NMS
+        # Inference
+        t1 = time_synchronized()
+        with torch.no_grad():  # Calculating gradients would cause a GPU memory leak
+            pred = self.model(img, augment=False)[0]
+        t2 = time_synchronized()
 
-            pred = non_max_suppression(pred, self.confidence_threshold, self.iou_threshold, classes=None,
-                                       agnostic=self.agnostic_nms)
-            t3 = time_synchronized()
+        # Apply NMS
+        pred = non_max_suppression(pred, self.confidence_threshold, self.iou_threshold, classes=None,
+                                   agnostic=self.agnostic_nms)
+        t3 = time_synchronized()
 
-            # Process detections
-            for i, det in enumerate(pred):  # detections per image
-                p, s, im0, frame = path, '', im0s, getattr(dataset, 'frame', 0)
+        # Process detections
+        for i, det in enumerate(pred):  # detections per image
+            if len(det):
+                # Rescale boxes from img_size to im0 size
+                det[:, :4] = scale_coords(img.shape[2:], det[:, :4], frame_to_process.shape).round()
 
-                if len(det):
-                    # Rescale boxes from img_size to im0 size
-                    det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
-
-                    for obj in range(len(det)):
-                        aux = det[obj].data[0:6].tolist()
-                        aux[4] = int(aux[4] * 100)
-                        for i in range(len(aux)):
-                            aux[i] = int(aux[i])
-                        # print(aux)
-                        bboxes.append(aux)
+                for obj in range(len(det)):
+                    aux = det[obj].data[0:6].tolist()
+                    aux[4] = int(aux[4] * 100)
+                    for i in range(len(aux)):
+                        aux[i] = int(aux[i])
+                    # print(aux)
+                    bboxes.append(aux)
         return bboxes
 
     def test_detection_speed(self):
