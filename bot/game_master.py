@@ -50,7 +50,9 @@ class GameMaster:
 
         self.screen_service.draw_box(bboxes)
         if len(bboxes):
-            self.screen_service.set_crosshair(bboxes[0][0], bboxes[0][1])
+            bboxes.sort(key=lambda b: b[4])
+            self.screen_service.set_crosshair_on_box(bboxes[0])
+            # self.screen_service.set_crosshair(int(bboxes[0][0] + bboxes[0][2]/2), int(bboxes[0][1] + bboxes[0][3]/2))
         end = time.time()
         print(end - start)
         while True:

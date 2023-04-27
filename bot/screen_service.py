@@ -1,5 +1,4 @@
 import ctypes
-import time
 from ctypes import windll
 
 import pyautogui
@@ -99,9 +98,10 @@ class ScreenService:
     def draw_box(self, bboxes, box_text='', box_color=green, text_color=blue):
         box_color_list = list(box_color)
         # Display FOV
-        self.draw_fov()
+        # self.draw_fov()
 
         for box in bboxes:
+            # bbox x_left, y_top, x_right, y_bottom
             x, y, w, h = int(box[0]), int(box[1]), int(box[2] - box[0]), int(box[3] - box[1])
             if box_text != '':
                 self.draw_text(box_text, x + (self.screen_width / 2 - fov_width / 2),
@@ -137,6 +137,16 @@ class ScreenService:
         # # Convert BGRA to BGR format used by OpenCV
         # screenshot = cv2.cvtColor(screenshot, cv2.COLOR_BGRA2BGR)
         return screenshot
+
+    def set_crosshair_on_box(self, box):
+        x, y, w, h, p, _class = int(box[0]), int(box[1]), int(box[2] - box[0]), int(box[3] - box[1]), box[4], box[5]
+        x_center, y_center = int(box[2] + box[0]) / 2, int(box[3] + box[1]) / 2
+        crosshair_x, crosshair_y = x_center, y_center
+        if _class in [0, 2]:
+            # Case for enemy bodies, aiming will be above the center
+            crosshair_y -= h / 6
+        self.set_crosshair(crosshair_x, crosshair_y)
+        pass
 
     def test_screen_manipulation(self):
         pygame.display.update()
@@ -201,26 +211,9 @@ class ScreenService:
             pygame.display.update()
 
     def test_mouse_movement(self):
-        self.set_crosshair(0, 0)
-        time.sleep(1)
-        self.set_crosshair(500, 500)
-        print(self.get_crosshair())
-        time.sleep(1)
-        self.set_crosshair(1000, 1000)
-        print(self.get_crosshair())
-        time.sleep(1)
-        self.set_crosshair(1100, 1000)
-        print(self.get_crosshair())
-        time.sleep(2)
-        self.set_crosshair(2000, 2000)
-        print(self.get_crosshair())
-        time.sleep(1)
-        self.set_crosshair(3740, 2000)
-        print(self.get_crosshair())
-        time.sleep(3)
-        self.set_crosshair(3840, 2160)
-        print(self.get_crosshair())
-        time.sleep(1)
+        self.set_crosshair_on_box([736, 420, 778, 518, 88, 0])
+        pygame.quit()
+        quit()
 
     def test_bbox_draw(self):
         self.draw_box([[929, 565, 962, 597, 81, 1], [907, 562, 1000, 735, 80, 0]], "CT")
@@ -233,10 +226,10 @@ class ScreenService:
 
 if __name__ == '__main__':
     service = ScreenService()
-    service.test_bbox_draw()
+    # service.test_bbox_draw()
     # service.test_screen_manipulation()
     # service.test_screen_capture()
-    # service.test_mouse_movement()
+    service.test_mouse_movement()
 #
 # # Initialize Pygame
 # pygame.init()
