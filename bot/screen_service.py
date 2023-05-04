@@ -88,6 +88,29 @@ class ScreenService:
         command = pynput._util.win32.INPUT(ctypes.c_ulong(0), ii_)
         self.SendInput(1, ctypes.pointer(command), ctypes.sizeof(command))
 
+    def click_left_button(self):
+        # create left mouse button down event
+        extra = ctypes.c_ulong(0)
+        ii_ = pynput._util.win32.INPUT_union()
+        ii_.mi = pynput._util.win32.MOUSEINPUT(0, 0, 0, (0x0002 | 0x8000), 0,
+                                               ctypes.cast(ctypes.pointer(extra), ctypes.c_void_p))
+        command_down = pynput._util.win32.INPUT(ctypes.c_ulong(0), ii_)
+
+        # create left mouse button up event
+        extra = ctypes.c_ulong(0)
+        ii_ = pynput._util.win32.INPUT_union()
+        ii_.mi = pynput._util.win32.MOUSEINPUT(0, 0, 0, (0x0004 | 0x8000), 0,
+                                               ctypes.cast(ctypes.pointer(extra), ctypes.c_void_p))
+        command_up = pynput._util.win32.INPUT(ctypes.c_ulong(0), ii_)
+
+        # send events to input queue
+        self.SendInput(1, ctypes.pointer(command_down), ctypes.sizeof(command_down))
+        self.SendInput(1, ctypes.pointer(command_up), ctypes.sizeof(command_up))
+
+    def set_crosshair_and_shoot(self, x, y):
+        self.set_crosshair(x, y)
+        self.click_left_button()
+
     def draw_text(self, text, x, y, background_color=green, text_color=blue, text_size=13):
         font = pygame.font.Font('freesansbold.ttf', text_size)
         fontText = font.render(text, True, text_color, background_color)
@@ -138,15 +161,22 @@ class ScreenService:
         # screenshot = cv2.cvtColor(screenshot, cv2.COLOR_BGRA2BGR)
         return screenshot
 
-    def set_crosshair_on_box(self, box):
+    def set_crosshair_on_box(self, box, shoot=True):
         x, y, w, h, p, _class = int(box[0]), int(box[1]), int(box[2] - box[0]), int(box[3] - box[1]), box[4], box[5]
         x_center, y_center = int(box[2] + box[0]) / 2, int(box[3] + box[1]) / 2
         crosshair_x, crosshair_y = x_center, y_center
         if _class in [0, 2]:
             # Case for enemy bodies, aiming will be above the center
             crosshair_y -= h / 6
-        self.set_crosshair(crosshair_x, crosshair_y)
+        if shoot:
+            self.set_crosshair_and_shoot(crosshair_x, crosshair_y)
+        else:
+            self.set_crosshair(crosshair_x, crosshair_y)
         pass
+
+    def clear_screen(self):
+        self.screen.fill(fuchsia)
+        pygame.display.update()
 
     def test_screen_manipulation(self):
         pygame.display.update()
@@ -215,6 +245,9 @@ class ScreenService:
         pygame.quit()
         quit()
 
+    def test_mouse_movement_and_shoot(self):
+        self.set_crosshair_and_shoot(500, 500)
+
     def test_bbox_draw(self):
         self.draw_box([[929, 565, 962, 597, 81, 1], [907, 562, 1000, 735, 80, 0]], "CT")
         while True:
@@ -229,7 +262,8 @@ if __name__ == '__main__':
     # service.test_bbox_draw()
     # service.test_screen_manipulation()
     # service.test_screen_capture()
-    service.test_mouse_movement()
+    # service.test_mouse_movement()
+    service.test_mouse_movement_and_shoot()
 #
 # # Initialize Pygame
 # pygame.init()
