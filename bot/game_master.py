@@ -25,15 +25,15 @@ class GameMaster:
 
     @staticmethod
     def box_is_valid(box):
-        if box is None or len(box) != 5:
+        if box is None or len(box) != 6:
             return False
-        return box[4] > 0.5
+        return box[4] > 50
 
     def detect_in_frame(self, draw_bboxes=False, shoot=True):
         frame = self.screen_service.grab_frame()
         frame = self.mss_to_cv2(frame)
         bboxes = self.object_detector.detect_in_frame(frame)
-
+        # print(bboxes)
         if draw_bboxes:
             self.screen_service.draw_box(bboxes)
 
@@ -43,13 +43,15 @@ class GameMaster:
             bboxes.sort(key=lambda b: b[4])
             chosen_box = bboxes[0]
 
+        print(chosen_box)
+
         if self.box_is_valid(chosen_box):
             self.screen_service.set_crosshair_on_box(chosen_box, shoot=shoot)
 
-    def detect_continuous(self):
+    def detect_continuous(self, draw_bboxes=False, shoot=True):
         while True:
-            self.detect_in_frame(draw_bboxes=True, shoot=True)
-            # time.sleep(0.5)
+            self.detect_in_frame(draw_bboxes=draw_bboxes, shoot=shoot)
+            time.sleep(0.3)
             self.screen_service.clear_screen()
             for event in pygame.event.get():
                 if event.type == pygame.MOUSEBUTTONDOWN:
@@ -90,7 +92,7 @@ class GameMaster:
                     quit()
 
     def test_detect_continuous(self):
-        self.detect_continuous()
+        self.detect_continuous(draw_bboxes=True, shoot=True)
 
     def demo(self):
         while True:
