@@ -61,6 +61,14 @@ class GameMaster:
                     pygame.quit()
                     quit()
 
+    def test_detection_speed_frame(self):
+        frame = self.screen_service.grab_frame()
+        frame = self.mss_to_cv2(frame)
+        start = time.time()
+        self.object_detector.detect_in_frame(frame)
+        end = time.time()
+        print(end - start)
+
     def test_integration_from_source(self):
         start = time.time()
         frame = self.screen_service.grab_frame()
@@ -110,7 +118,8 @@ class GameMaster:
 
 if __name__ == '__main__':
     master = GameMaster()
-    master.test_detect_continuous()
+    # master.test_detect_continuous()
+    master.test_detection_speed_frame()
 
 # import mss
 # import cv2

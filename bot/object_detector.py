@@ -142,15 +142,13 @@ class ObjectDetector:
                     bboxes.append(aux)
         return bboxes
 
-    def test_detection_speed(self):
+    def test_detection_speed_from_source(self):
         start = time.time()
         self.detect_from_source('../test_images/1.jpg')
-        # frame = cv2.imread('../test_images/1.jpg')
-        # self.detect_frame(frame)
         end = time.time()
         print(end - start)
 
 
 if __name__ == '__main__':
     model = ObjectDetector()
-    model.test_detection_speed()
+    model.test_detection_speed_from_source()
