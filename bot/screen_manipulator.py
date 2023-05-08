@@ -9,8 +9,9 @@ import win32con
 import win32gui
 from mss import mss, tools
 
-from constants import fuchsia, WINDOW, screen_width, screen_height, green, blue, fov_width, \
-    fov_height, CT, T_HEAD, T, CT_HEAD, NOT_TOPMOST, NO_MOVE, NO_SIZE, TOPMOST
+from constants import fuchsia, WINDOW, green, blue, fov_width, \
+    fov_height, CT, T_HEAD, T, CT_HEAD, NOT_TOPMOST, NO_MOVE, NO_SIZE, TOPMOST, red, screen_width_4k, screen_height_4k, \
+    cyan
 
 
 class RECT(ctypes.Structure):
@@ -26,26 +27,29 @@ class RECT(ctypes.Structure):
     def height(self): return self.bottom - self.top
 
 
-class ScreenService:
+class ScreenManipulator:
     def __init__(self):
         fpsClock = pygame.time.Clock()
+        # Initialize PyGame window
         pygame.init()
-        self.screen_width = screen_width
-        self.screen_height = screen_height
+        self.screen_width = screen_width_4k
+        self.screen_height = screen_height_4k
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
         # self.screen = pygame.display.set_mode((screen_width_4k, screen_height_4k), pygame.NOFRAME)  # (0, 0) sets the size o the size
         # self.screen = pygame.display.set_mode((0, 0), pygame.NOFRAME)  # (0, 0) sets the size o the size
         # of the screen
         # # self.screen = pygame.display.set_mode((1920, 1080), pygame.HWSURFACE)  # For borderless, use pygame.NOFRAME
 
+        # Set the default back-ground color which is fuchsia to be interpreted as transparent
         hwnd = pygame.display.get_wm_info()[WINDOW]
         win32gui.SetWindowLong(hwnd, win32con.GWL_EXSTYLE,
                                win32gui.GetWindowLong(hwnd, win32con.GWL_EXSTYLE) | win32con.WS_EX_LAYERED)
         win32gui.SetLayeredWindowAttributes(hwnd, win32api.RGB(*fuchsia), 0, win32con.LWA_COLORKEY)
-
         self.SetWindowPos = windll.user32.SetWindowPos
         self.screen.fill(fuchsia)
         pygame.display.update()
+
+        # Position the window to always be on top of the screen
         self.always_on_top(True)
 
         self.SendInput = ctypes.windll.user32.SendInput
@@ -54,6 +58,7 @@ class ScreenService:
 
         self.classesNames = [CT, CT_HEAD, T, T_HEAD]
 
+        # Define the area on the screen to capture
         self.monitor = {"top": 0, "left": 0, "width": self.screen_width, "height": self.screen_height}
         # x = 0
         # y = 0
@@ -66,6 +71,12 @@ class ScreenService:
     #     rc = RECT()
     #     GetWindowRect(window, ctypes.byref(rc))
     #     SetWindowPos(window, -1, rc.left, rc.top, 0, 0, 0x0001)
+
+    @staticmethod
+    def unpack_box(box):
+        # Format of unpacking: x_top, y_left, width, height, confidence of prediction, _class predicted
+        x, y, w, h, c, _class = int(box[0]), int(box[1]), int(box[2] - box[0]), int(box[3] - box[1]), box[4], box[5]
+        return x, y, w, h, c, _class
 
     def always_on_top(self, yesOrNo):
         win32gui.SetWindowPos(pygame.display.get_wm_info()['window'], win32con.HWND_TOPMOST, 0, 0, 0, 0,
@@ -85,6 +96,7 @@ class ScreenService:
         ii_ = pynput._util.win32.INPUT_union()
         ii_.mi = pynput._util.win32.MOUSEINPUT(x, y, 0, (0x0001 | 0x8000), 0,
                                                ctypes.cast(ctypes.pointer(extra), ctypes.c_void_p))
+        # create mouse movement event
         command = pynput._util.win32.INPUT(ctypes.c_ulong(0), ii_)
         self.SendInput(1, ctypes.pointer(command), ctypes.sizeof(command))
 
@@ -118,7 +130,7 @@ class ScreenService:
         textRect.center = (x, y)
         self.screen.blit(fontText, textRect)
 
-    def draw_box(self, bboxes, box_text='', box_color=green, text_color=blue):
+    def draw_boxes(self, bboxes, box_text='', box_color=green, text_color=blue, draw_aiming_point=True):
         box_color_list = list(box_color)
         # Display FOV
         # self.draw_fov()
@@ -135,6 +147,8 @@ class ScreenService:
             #                   y + (self.screen_height / 2 - fov_height / 2), w, h],
             #                  1)
             pygame.draw.rect(self.screen, box_color_list, [x, y, w, h], 1)
+            if draw_aiming_point:
+                pygame.draw.circle(self.screen, color=red, center=(x + w // 2, y + h // 2), radius=3)
             pygame.display.update()
 
     def draw_fov(self):
@@ -142,6 +156,17 @@ class ScreenService:
                          [self.screen_width / 2 - fov_width / 2, self.screen_height / 2 - fov_height / 2, fov_width,
                           fov_height],
                          1)
+        pygame.display.update()
+
+    def draw_line_to_box(self, box, color=cyan, width=5):
+        x, y, w, h, c, _class = self.unpack_box(box)
+        start = self.get_crosshair()
+        end = x + w // 2, y + h // 2
+        pygame.draw.line(self.screen, start_pos=start, end_pos=end, color=color, width=width)
+        pygame.display.update()
+
+    def clear_screen(self):
+        self.screen.fill(fuchsia)
         pygame.display.update()
 
     # @staticmethod
@@ -161,30 +186,13 @@ class ScreenService:
         # screenshot = cv2.cvtColor(screenshot, cv2.COLOR_BGRA2BGR)
         return screenshot
 
-    def set_crosshair_on_box(self, box, shoot=True):
-        x, y, w, h, p, _class = int(box[0]), int(box[1]), int(box[2] - box[0]), int(box[3] - box[1]), box[4], box[5]
-        x_center, y_center = int(box[2] + box[0]) / 2, int(box[3] + box[1]) / 2
-        crosshair_x, crosshair_y = x_center, y_center
-        if _class in [0, 2]:
-            # Case for enemy bodies, aiming will be above the center
-            crosshair_y -= h / 6
-        if shoot:
-            self.set_crosshair_and_shoot(crosshair_x, crosshair_y)
-        else:
-            self.set_crosshair(crosshair_x, crosshair_y)
-        pass
-
-    def clear_screen(self):
-        self.screen.fill(fuchsia)
-        pygame.display.update()
-
     def test_screen_manipulation(self):
         pygame.display.update()
-        self.draw_box([[929, 565, 962, 597, 81, 1], [907, 562, 1000, 735, 80, 0]])
+        self.draw_boxes([[929, 565, 962, 597, 81, 1], [907, 562, 1000, 735, 80, 0]])
 
         for i in range(200):
             self.draw_text("TEST" + str(i), 150, 25, background_color=fuchsia, text_color=green, text_size=32)
-            self.draw_box([[(300 + 10 * i) % self.screen_width, (400 + 10 * i) % self.screen_height, 100, 50]])
+            self.draw_boxes([[(300 + 10 * i) % self.screen_width, (400 + 10 * i) % self.screen_height, 100, 50]])
             # self.set_crosshair((10 * i) % self.screen_width, (40 * i) % self.screen_height)
             pygame.display.update()
 
@@ -241,15 +249,26 @@ class ScreenService:
             pygame.display.update()
 
     def test_mouse_movement(self):
-        self.set_crosshair_on_box([736, 420, 778, 518, 88, 0])
+        self.set_crosshair(750, 100)
+        cur_x, cur_y = self.get_crosshair()
+        assert cur_x == 750 and cur_y == 100
         pygame.quit()
         quit()
 
     def test_mouse_movement_and_shoot(self):
         self.set_crosshair_and_shoot(500, 500)
 
+    def test_draw_line(self):
+        self.draw_boxes([[929, 565, 962, 597, 81, 1], [907, 562, 1000, 735, 80, 0]], "CT")
+        self.draw_line_to_box([929, 565, 962, 597, 81, 1])
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    quit()
+
     def test_bbox_draw(self):
-        self.draw_box([[929, 565, 962, 597, 81, 1], [907, 562, 1000, 735, 80, 0]], "CT")
+        self.draw_boxes([[929, 565, 962, 597, 81, 1], [907, 562, 1000, 735, 80, 0]], "CT")
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -258,12 +277,13 @@ class ScreenService:
 
 
 if __name__ == '__main__':
-    service = ScreenService()
+    service = ScreenManipulator()
     # service.test_bbox_draw()
+    # service.test_draw_line()
     # service.test_screen_manipulation()
     # service.test_screen_capture()
-    # service.test_mouse_movement()
-    service.test_mouse_movement_and_shoot()
+    service.test_mouse_movement()
+    # service.test_mouse_movement_and_shoot()
 #
 # # Initialize Pygame
 # pygame.init()

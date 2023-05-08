@@ -11,6 +11,7 @@ dark_red = (139, 0, 0)
 blue = (0, 0, 255)
 red = (255, 0, 0)
 green = (0, 255, 0)
+cyan = (0, 255, 255)
 
 NO_SIZE = 1
 NO_MOVE = 2
