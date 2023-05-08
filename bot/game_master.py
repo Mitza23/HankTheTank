@@ -17,6 +17,7 @@ class GameMaster:
         self.clicks = 0
 
     @staticmethod
+    # Convert the ScreenShot from ScreenManipulator to a data type accepted by the model
     def mss_to_cv2(screen):
         # Extract the BGRA color array from the mss Screenshot
         img = np.array(screen)
@@ -36,7 +37,7 @@ class GameMaster:
         x_center, y_center = int(box[2] + box[0]) / 2, int(box[3] + box[1]) / 2
         crosshair_x, crosshair_y = x_center, y_center
         if _class in [0, 2]:
-            # Case for enemy bodies, aiming will be above the center
+            # Case for enemy bodies, aiming will be above the center of the box to avoid shooting between the legs
             crosshair_y -= h / 6
         if shoot:
             self.screen_manipulator.set_crosshair_and_shoot(crosshair_x, crosshair_y)
@@ -138,29 +139,3 @@ if __name__ == '__main__':
     # master.test_detect_continuous()
     # master.test_detection_speed_frame()
     master.demo()
-
-# import mss
-# import cv2
-#
-#
-# # The model takes as input images in BGR encoding as outputted by cv2.imread(), while the screen captures from
-# # mss().grab() are done in BGRA encoding
-# def mss_to_cv2(screen):
-#     # Extract the BGRA color array from the mss Screenshot
-#     img = np.array(screen)
-#     # Convert BGRA to BGR format used by OpenCV
-#     img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
-#     return img
-#
-#
-# with mss.mss() as sct:
-#     # Capture a screenshot
-#     screenshot = sct.grab(sct.monitors[0])
-#
-#     # Convert the screenshot to a NumPy array in BGR format
-#     img = mss_to_cv2(screenshot)
-#
-#     # Display the image using OpenCV
-#     cv2.imshow("Screenshot", img)
-#     cv2.waitKey(0)
-#     cv2.destroyAllWindows()

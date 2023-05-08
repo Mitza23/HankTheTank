@@ -9,9 +9,9 @@ import win32con
 import win32gui
 from mss import mss, tools
 
-from constants import fuchsia, WINDOW, green, blue, fov_width, \
-    fov_height, CT, T_HEAD, T, CT_HEAD, NOT_TOPMOST, NO_MOVE, NO_SIZE, TOPMOST, red, screen_width_4k, screen_height_4k, \
-    cyan
+from constants import fuchsia, WINDOW, green, blue, \
+    CT, T_HEAD, T, CT_HEAD, NOT_TOPMOST, NO_MOVE, NO_SIZE, TOPMOST, red, screen_width_4k, screen_height_4k, \
+    cyan, white
 
 
 class RECT(ctypes.Structure):
@@ -22,7 +22,7 @@ class RECT(ctypes.Structure):
         ('bottom', ctypes.c_long),
     ]
 
-    def width(self):  return self.right - self.left
+    def width(self): return self.right - self.left
 
     def height(self): return self.bottom - self.top
 
@@ -35,9 +35,7 @@ class ScreenManipulator:
         self.screen_width = screen_width_4k
         self.screen_height = screen_height_4k
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
-        # self.screen = pygame.display.set_mode((screen_width_4k, screen_height_4k), pygame.NOFRAME)  # (0, 0) sets the size o the size
-        # self.screen = pygame.display.set_mode((0, 0), pygame.NOFRAME)  # (0, 0) sets the size o the size
-        # of the screen
+        # self.screen = pygame.display.set_mode((0, 0), pygame.NOFRAME) # (0, 0) sets the size to the size of the screen
         # # self.screen = pygame.display.set_mode((1920, 1080), pygame.HWSURFACE)  # For borderless, use pygame.NOFRAME
 
         # Set the default back-ground color which is fuchsia to be interpreted as transparent
@@ -63,14 +61,6 @@ class ScreenManipulator:
         # x = 0
         # y = 0
         # os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (x, y)
-
-    # @staticmethod
-    # def onTop(window):
-    #     SetWindowPos = windll.user32.SetWindowPos
-    #     GetWindowRect = windll.user32.GetWindowRect
-    #     rc = RECT()
-    #     GetWindowRect(window, ctypes.byref(rc))
-    #     SetWindowPos(window, -1, rc.left, rc.top, 0, 0, 0x0001)
 
     @staticmethod
     def unpack_box(box):
@@ -130,33 +120,19 @@ class ScreenManipulator:
         textRect.center = (x, y)
         self.screen.blit(fontText, textRect)
 
-    def draw_boxes(self, bboxes, box_text='', box_color=green, text_color=blue, draw_aiming_point=True):
-        box_color_list = list(box_color)
-        # Display FOV
-        # self.draw_fov()
-
+    def draw_boxes(self, bboxes, box_text='', box_color=green, text_color=white, draw_aiming_point=True, text_size=13):
         for box in bboxes:
             # bbox x_left, y_top, x_right, y_bottom
-            x, y, w, h = int(box[0]), int(box[1]), int(box[2] - box[0]), int(box[3] - box[1])
+            x, y, w, h, c, _class = self.unpack_box(box)
             if box_text != '':
-                self.draw_text(box_text, x + (self.screen_width / 2 - fov_width / 2),
-                               y - 10 + (self.screen_height / 2 - fov_height / 2),
-                               background_color=box_color, text_color=text_color)
-            # pygame.draw.rect(self.screen, box_color_list,
-            #                  [x + (self.screen_width / 2 - fov_width / 2),
-            #                   y + (self.screen_height / 2 - fov_height / 2), w, h],
-            #                  1)
+                self.draw_text(box_text, x, y - text_size // 2, background_color=box_color,
+                               text_color=text_color, text_size=text_size)
+
+            box_color_list = list(box_color)
             pygame.draw.rect(self.screen, box_color_list, [x, y, w, h], 1)
             if draw_aiming_point:
                 pygame.draw.circle(self.screen, color=red, center=(x + w // 2, y + h // 2), radius=3)
             pygame.display.update()
-
-    def draw_fov(self):
-        pygame.draw.rect(self.screen, [0, 255, 0],
-                         [self.screen_width / 2 - fov_width / 2, self.screen_height / 2 - fov_height / 2, fov_width,
-                          fov_height],
-                         1)
-        pygame.display.update()
 
     def draw_line_to_box(self, box, color=cyan, width=5):
         x, y, w, h, c, _class = self.unpack_box(box)
@@ -169,21 +145,9 @@ class ScreenManipulator:
         self.screen.fill(fuchsia)
         pygame.display.update()
 
-    # @staticmethod
-    # def mss_to_cv2(screen):
-    #     # Extract the BGRA color array from the mss Screenshot
-    #     img = np.array(screen)
-    #     # Convert BGRA to BGR format used by OpenCV
-    #     img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
-    #     return img
-
     def grab_frame(self):
         with mss() as sct:
             screenshot = sct.grab(self.monitor)
-        # # Convert the ScreenShot to a data type accepted by th model
-        # screenshot = np.array(screenshot)
-        # # Convert BGRA to BGR format used by OpenCV
-        # screenshot = cv2.cvtColor(screenshot, cv2.COLOR_BGRA2BGR)
         return screenshot
 
     def test_screen_manipulation(self):
@@ -193,7 +157,7 @@ class ScreenManipulator:
         for i in range(200):
             self.draw_text("TEST" + str(i), 150, 25, background_color=fuchsia, text_color=green, text_size=32)
             self.draw_boxes([[(300 + 10 * i) % self.screen_width, (400 + 10 * i) % self.screen_height, 100, 50]])
-            # self.set_crosshair((10 * i) % self.screen_width, (40 * i) % self.screen_height)
+            self.set_crosshair((10 * i) % self.screen_width, (40 * i) % self.screen_height)
             pygame.display.update()
 
     # def test_screen_capture(self):
@@ -248,13 +212,6 @@ class ScreenManipulator:
             #  Checking for the update in the display
             pygame.display.update()
 
-    def test_mouse_movement(self):
-        self.set_crosshair(750, 100)
-        cur_x, cur_y = self.get_crosshair()
-        assert cur_x == 750 and cur_y == 100
-        pygame.quit()
-        quit()
-
     def test_mouse_movement_and_shoot(self):
         self.set_crosshair_and_shoot(500, 500)
 
@@ -267,7 +224,7 @@ class ScreenManipulator:
                     pygame.quit()
                     quit()
 
-    def test_bbox_draw(self):
+    def test_draw_bboxes(self):
         self.draw_boxes([[929, 565, 962, 597, 81, 1], [907, 562, 1000, 735, 80, 0]], "CT")
         while True:
             for event in pygame.event.get():
@@ -275,14 +232,21 @@ class ScreenManipulator:
                     pygame.quit()
                     quit()
 
+    def test_mouse_movement(self):
+        self.set_crosshair(750, 100)
+        cur_x, cur_y = self.get_crosshair()
+        assert cur_x == 750 and cur_y == 100
+        pygame.quit()
+        quit()
+
 
 if __name__ == '__main__':
     service = ScreenManipulator()
-    # service.test_bbox_draw()
+    service.test_draw_bboxes()
     # service.test_draw_line()
     # service.test_screen_manipulation()
     # service.test_screen_capture()
-    service.test_mouse_movement()
+    # service.test_mouse_movement()
     # service.test_mouse_movement_and_shoot()
 #
 # # Initialize Pygame

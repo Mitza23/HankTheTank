@@ -3,15 +3,15 @@ screen_width_4k = 3840
 screen_height = 1080
 screen_height_4k = 2160
 
-fov_width = 96
-fov_height = 96
 
+# Colors
 fuchsia = (255, 0, 128)  # Transparency color
 dark_red = (139, 0, 0)
 blue = (0, 0, 255)
 red = (255, 0, 0)
 green = (0, 255, 0)
 cyan = (0, 255, 255)
+white = (255, 255, 255)
 
 NO_SIZE = 1
 NO_MOVE = 2
