@@ -1,4 +1,5 @@
 import ctypes
+import time
 from ctypes import windll
 
 import pyautogui
@@ -10,7 +11,7 @@ import win32gui
 from mss import mss, tools
 
 from constants import fuchsia, WINDOW, green, blue, \
-    CT, T_HEAD, T, CT_HEAD, NOT_TOPMOST, NO_MOVE, NO_SIZE, TOPMOST, red, screen_width_4k, screen_height_4k, \
+    NOT_TOPMOST, NO_MOVE, NO_SIZE, TOPMOST, red, screen_width_4k, screen_height_4k, \
     cyan, white
 
 
@@ -29,7 +30,8 @@ class RECT(ctypes.Structure):
 
 class ScreenManipulator:
     def __init__(self):
-        fpsClock = pygame.time.Clock()
+        self.fpsClock = pygame.time.Clock()
+        # fpsClock.tick(30)
         # Initialize PyGame window
         pygame.init()
         self.screen_width = screen_width_4k
@@ -53,8 +55,6 @@ class ScreenManipulator:
         self.SendInput = ctypes.windll.user32.SendInput
 
         pyautogui.PAUSE = 0
-
-        self.classesNames = [CT, CT_HEAD, T, T_HEAD]
 
         # Define the area on the screen to capture
         self.monitor = {"top": 0, "left": 0, "width": self.screen_width, "height": self.screen_height}
@@ -107,10 +107,13 @@ class ScreenManipulator:
 
         # send events to input queue
         self.SendInput(1, ctypes.pointer(command_down), ctypes.sizeof(command_down))
+        time.sleep(0.01)
         self.SendInput(1, ctypes.pointer(command_up), ctypes.sizeof(command_up))
+        print('SHOT FIRED')
 
     def set_crosshair_and_shoot(self, x, y):
         self.set_crosshair(x, y)
+        time.sleep(0.01)
         self.click_left_button()
 
     def draw_text(self, text, x, y, background_color=green, text_color=blue, text_size=13):
@@ -213,7 +216,19 @@ class ScreenManipulator:
             pygame.display.update()
 
     def test_mouse_movement_and_shoot(self):
-        self.set_crosshair_and_shoot(500, 500)
+        time.sleep(5)
+        for i in range(10):
+            x, y = self.get_crosshair()
+            self.set_crosshair_and_shoot(x + 100, y + 10)
+            self.screen.fill(fuchsia)
+            pygame.display.update()
+            print(i)
+            time.sleep(1)
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    quit()
 
     def test_draw_line(self):
         self.draw_boxes([[929, 565, 962, 597, 81, 1], [907, 562, 1000, 735, 80, 0]], "CT")
@@ -239,43 +254,53 @@ class ScreenManipulator:
         pygame.quit()
         quit()
 
+    def test_mouse_recording(self):
+        clicks = []
+
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    quit()
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    print('click')
+                    clicks.append(event.pos)
+
+            self.screen.fill((255, 255, 255))
+            # Does not work with fuchsia background because it does not register clicks on transparent background...
+            # self.screen.fill(fuchsia)
+
+            # Draw all recorded clicks as circles on the screen
+            for click in clicks:
+                pygame.draw.circle(self.screen, (255, 0, 0), click, 5)
+
+            pygame.display.update()
+            self.fpsClock.tick(60)
+        # while True:
+        #     for event in pygame.event.get():
+        #         if event.type == pygame.QUIT:
+        #             pygame.quit()
+        #             quit()
+        #         elif event.type == pygame.MOUSEBUTTONDOWN:
+        #            print('click')
+        # self.fpsClock.tick(60)
+        # from pynput.mouse import Listener
+        #
+        # def on_click(x, y, button, pressed):
+        #     if pressed:
+        #         print(f"Clicked at ({x}, {y}) with {button}")
+        #
+        # with Listener(on_click=on_click) as listener:
+        #     listener.join()
+        #     self.fpsClock.tick(10)
+
 
 if __name__ == '__main__':
     service = ScreenManipulator()
-    service.test_draw_bboxes()
+    # service.test_draw_bboxes()
     # service.test_draw_line()
     # service.test_screen_manipulation()
     # service.test_screen_capture()
     # service.test_mouse_movement()
     # service.test_mouse_movement_and_shoot()
-#
-# # Initialize Pygame
-# pygame.init()
-#
-# # Set the screen size
-# screen_size = (800, 600)
-#
-# # Create the Pygame screen
-# screen = pygame.display.set_mode(screen_size)
-#
-# # Create an mss screenshot object
-# with mss() as sct:
-#     # Capture a screenshot of the entire screen
-#     monitor = {"top": 0, "left": 0, "width": screen_size[0], "height": screen_size[1]}
-#     screenshot = sct.grab(monitor)
-#
-#     # Convert the screenshot to a Pygame surface
-#     pygame_screenshot = pygame.image.frombuffer(screenshot.rgb, screenshot.size, "RGB")
-#
-#     # Blit the Pygame surface onto the screen
-#     screen.blit(pygame_screenshot, (0, 0))
-#
-# # Update the display
-# pygame.display.update()
-#
-# # Wait for the user to close the window
-# while True:
-#     for event in pygame.event.get():
-#         if event.type == pygame.QUIT:
-#             pygame.quit()
-#             quit()
+    service.test_mouse_recording()

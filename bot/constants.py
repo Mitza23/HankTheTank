@@ -18,10 +18,11 @@ NO_MOVE = 2
 TOPMOST = -1
 NOT_TOPMOST = -2
 
-T_HEAD = 't_head'
-CT_HEAD = 'ct_head'
-T = 't'
-CT = 'ct'
+CT = '0'
+CT_HEAD = '1'
+T = '2'
+T_HEAD = '3'
+ALL = 'all'
 
 F9_KEY = 'f9'
 F5_KEY = 'f5'

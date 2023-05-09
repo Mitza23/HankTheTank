@@ -4,19 +4,17 @@ import warnings
 
 import cv2
 import torch
-import torch.backends.cudnn as cudnn
-from numpy import random
 
 from models.experimental import attempt_load
-from utils.datasets import LoadStreams, LoadImages
-from utils.general import check_img_size, check_imshow, non_max_suppression, apply_classifier, \
-    scale_coords
-from utils.torch_utils import select_device, load_classifier, time_synchronized
+from utils.datasets import LoadImages
+from utils.general import check_img_size, non_max_suppression, scale_coords
+from utils.torch_utils import select_device, time_synchronized
 
 warnings.filterwarnings("ignore")
 total_time = 0
 
 def main():
+    # detect_in_image('test_images/1147.jpg', 'test_detect/', '1147')
     process_folder('test_images')
     print(total_time)
 
