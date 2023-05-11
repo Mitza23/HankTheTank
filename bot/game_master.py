@@ -1,6 +1,7 @@
 import time
 
 import cv2
+import keyboard
 import numpy as np
 import pygame
 from mss import tools
@@ -44,8 +45,10 @@ class GameMaster:
         x, y, w, h, c, _class = self.screen_manipulator.unpack_box(box)
         x_center, y_center = int(box[2] + box[0]) / 2, int(box[3] + box[1]) / 2
         crosshair_x, crosshair_y = x_center, y_center
+        print("Box class: ", _class)
         if _class in [CT, T]:
             # Case for enemy bodies, aiming will be above the center of the box to avoid shooting between the legs
+            print("Body shot")
             crosshair_y -= h / 4
         if shoot:
             self.screen_manipulator.set_crosshair_and_shoot(crosshair_x, crosshair_y)
@@ -117,6 +120,7 @@ class GameMaster:
     def headshot_strategy(self, bboxes, opponent_team):
         bboxes = self.remove_allies(bboxes, opponent_team)
         bboxes = self.remove_uncertain_predictions(bboxes, certainty_threshold=50)
+        bboxes = self.proximal_box(bboxes)
         fallback_box = None
         if len(bboxes):
             fallback_box = bboxes[0]
@@ -127,6 +131,7 @@ class GameMaster:
         else:
             return fallback_box
 
+    # Strategy for prioritizing the enemy closest to the player
     def proximal_strategy(self, bboxes, opponent_team):
         bboxes = self.remove_allies(bboxes, opponent_team)
         bboxes = self.remove_uncertain_predictions(bboxes, certainty_threshold=50)
@@ -136,18 +141,24 @@ class GameMaster:
         else:
             return None
 
+    # Strategy for prioritizing the enemy closest to the crosshair
     def fastest_kill_strategy(self, bboxes, opponent_team):
-        # print('fastest_kill_strategy')
-        # print(f'before: {bboxes}')
         bboxes = self.remove_allies(bboxes, opponent_team)
-        # print(f'after_remove: {bboxes}')
         bboxes = self.remove_uncertain_predictions(bboxes, certainty_threshold=50)
         bboxes = self.closest_box(bboxes)
-        # print(f'after: {bboxes}')
         if len(bboxes) > 0:
             return bboxes[0]
         else:
             return None
+
+    # The method that will be called by the main loop to decide which box to aim at. In case the player is already
+    # engaged in a battle, the strategy will be to prioritize the enemy closest to the crosshair
+    def strategize(self, bboxes, opponent_team, aiming_strategy):
+        if self.engaged:
+            chosen_box = self.fastest_kill_strategy(bboxes, opponent_team)
+        else:
+            chosen_box = aiming_strategy(bboxes, opponent_team)
+        return chosen_box
 
     def grab_frame(self):
         frame = self.screen_manipulator.grab_frame()
@@ -158,14 +169,6 @@ class GameMaster:
         self.screen_manipulator.draw_boxes(bboxes)
         self.screen_manipulator.draw_boxes([chosen_box], box_color=red)
         self.screen_manipulator.draw_line_to_box(chosen_box)
-
-    def strategize(self, bboxes, opponent_team, aiming_strategy):
-        if self.engaged:
-            chosen_box = self.fastest_kill_strategy(bboxes, opponent_team)
-        else:
-            # print('not engaged')
-            chosen_box = aiming_strategy(bboxes, opponent_team)
-        return chosen_box
 
     def detect_in_frame(self, opponent_team, aiming_strategy, draw_bboxes, shoot, demo_time=1):
         _start = time.time()
@@ -197,23 +200,33 @@ class GameMaster:
         else:
             self.engaged = False
         end = time.time()
-        print(f'total: {end - _start - demo_time}')
+        print(f'total: {end - _start}')
 
     def detect_continuous(self, opponent_team, aiming_strategy, draw_bboxes, shoot, delay=0.01):
         while True:
             self.detect_in_frame(opponent_team=opponent_team, aiming_strategy=aiming_strategy, draw_bboxes=draw_bboxes,
                                  shoot=shoot)
-            time.sleep(delay)
+            if self.engaged:
+                # Used to wait for the character to recover from recoil
+                time.sleep(delay)
             if draw_bboxes:
                 self.screen_manipulator.clear_screen()
+            if keyboard.is_pressed('f1'):
+                print(f"Clicks made: {self.clicks}")
+                pygame.quit()
+                quit()
             for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_F1:
+                        pygame.quit()
+                        quit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     self.clicks += 1
                 if event.type == pygame.QUIT:
                     print(f"Clicks made: {self.clicks}")
                     pygame.quit()
                     quit()
-            self.screen_manipulator.fpsClock.tick(30)
+            # self.screen_manipulator.fpsClock.tick(60)
 
     def test_detection_speed_frame(self):
         frame = self.screen_manipulator.grab_frame()
@@ -266,10 +279,44 @@ class GameMaster:
     def demo(self):
         self.detect_continuous(ALL, self.fastest_kill_strategy, draw_bboxes=True, shoot=True)
 
+    def test_shooting(self):
+        self.screen_manipulator.test_mouse_movement_and_shoot()
+
+    def test_loop(self):
+        while True:
+            frame = self.grab_frame()
+            bboxes = self.object_detector.detect_in_frame(frame)
+            chosen_box = self.strategize(bboxes, 'ALL', self.fastest_kill_strategy)
+            if self.box_is_valid(chosen_box):
+                self.set_crosshair_on_box(chosen_box, shoot=True)
+                self.engaged = True
+            else:
+                self.engaged = False
+
+    def test_key_triggers(self):
+        while True:
+            if keyboard.is_pressed('k'):
+                print('You Pressed k!')
+            for event in pygame.event.get():
+                print(event)
+            self.screen_manipulator.fpsClock.tick(10)
+            # break
+
+    def start_bot_on_command(self):
+        while True:
+            if keyboard.is_pressed('k'):
+                break
+            for event in pygame.event.get():
+                print(event)
+            self.screen_manipulator.fpsClock.tick(10)
+        self.test_loop()
 
 if __name__ == '__main__':
     master = GameMaster()
-    master.demo()
+    # master.demo()
+    # master.test_shooting()
     # master.test_continuous()
     # master.test_strategize()
     # master.test_detection_speed_frame()
+    # master.test_loop()
+    master.start_bot_on_command()

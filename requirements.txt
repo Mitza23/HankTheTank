@@ -44,7 +44,7 @@ opencv-contrib-python==4.4.0.42
 pynput==1.7.1
 # numpy==1.16.0
 PyAutoGUI==0.9.50
-pygame==2.0.0
+pygame==2.4.0
 mss==6.0.0
 keyboard==0.13.5
 mouse==0.7.1

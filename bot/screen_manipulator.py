@@ -12,7 +12,7 @@ from mss import mss, tools
 
 from constants import fuchsia, WINDOW, green, blue, \
     NOT_TOPMOST, NO_MOVE, NO_SIZE, TOPMOST, red, screen_width_4k, screen_height_4k, \
-    cyan, white
+    cyan, white, CT, T
 
 
 class RECT(ctypes.Structure):
@@ -34,6 +34,7 @@ class ScreenManipulator:
         # fpsClock.tick(30)
         # Initialize PyGame window
         pygame.init()
+        print("Initializing PyGame window...")
         self.screen_width = screen_width_4k
         self.screen_height = screen_height_4k
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
@@ -48,7 +49,6 @@ class ScreenManipulator:
         self.SetWindowPos = windll.user32.SetWindowPos
         self.screen.fill(fuchsia)
         pygame.display.update()
-
         # Position the window to always be on top of the screen
         self.always_on_top(True)
 
@@ -107,13 +107,15 @@ class ScreenManipulator:
 
         # send events to input queue
         self.SendInput(1, ctypes.pointer(command_down), ctypes.sizeof(command_down))
-        time.sleep(0.01)
+        time.sleep(0.5)
         self.SendInput(1, ctypes.pointer(command_up), ctypes.sizeof(command_up))
+        # pyautogui.click()
+        for event in pygame.event.get():
+            print(event)
         print('SHOT FIRED')
 
     def set_crosshair_and_shoot(self, x, y):
         self.set_crosshair(x, y)
-        time.sleep(0.01)
         self.click_left_button()
 
     def draw_text(self, text, x, y, background_color=green, text_color=blue, text_size=13):
@@ -134,6 +136,8 @@ class ScreenManipulator:
             box_color_list = list(box_color)
             pygame.draw.rect(self.screen, box_color_list, [x, y, w, h], 1)
             if draw_aiming_point:
+                if _class in [CT, T]:
+                    pygame.draw.circle(self.screen, color=red, center=(x + w // 2, y + h // 4), radius=3)
                 pygame.draw.circle(self.screen, color=red, center=(x + w // 2, y + h // 2), radius=3)
             pygame.display.update()
 
@@ -162,28 +166,6 @@ class ScreenManipulator:
             self.draw_boxes([[(300 + 10 * i) % self.screen_width, (400 + 10 * i) % self.screen_height, 100, 50]])
             self.set_crosshair((10 * i) % self.screen_width, (40 * i) % self.screen_height)
             pygame.display.update()
-
-    # def test_screen_capture(self):
-    #     # Create an mss screenshot object
-    #     with mss() as sct:
-    #         # Capture a screenshot of the entire screen
-    #         screenshot = sct.grab(self.monitor)
-    #
-    #         # Convert the screenshot to a Pygame surface
-    #         pygame_screenshot = pygame.image.frombuffer(screenshot.rgb, screenshot.size, "RGB")
-    #
-    #         # Blit the Pygame surface onto the screen
-    #         self.screen.blit(pygame_screenshot, (0, 0))
-    #
-    #     # Update the display
-    #     pygame.display.update()
-    #
-    #     # Wait for the user to close the window
-    #     while True:
-    #         for event in pygame.event.get():
-    #             if event.type == pygame.QUIT:
-    #                 pygame.quit()
-    #                 quit()
 
     def test_screen_capture(self):
         # Main while loop for the program
@@ -214,21 +196,6 @@ class ScreenManipulator:
             #  Calling the show_text function
             #  Checking for the update in the display
             pygame.display.update()
-
-    def test_mouse_movement_and_shoot(self):
-        time.sleep(5)
-        for i in range(10):
-            x, y = self.get_crosshair()
-            self.set_crosshair_and_shoot(x + 100, y + 10)
-            self.screen.fill(fuchsia)
-            pygame.display.update()
-            print(i)
-            time.sleep(1)
-        while True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    quit()
 
     def test_draw_line(self):
         self.draw_boxes([[929, 565, 962, 597, 81, 1], [907, 562, 1000, 735, 80, 0]], "CT")
@@ -294,6 +261,39 @@ class ScreenManipulator:
         #     listener.join()
         #     self.fpsClock.tick(10)
 
+    def test_mouse_click(self):
+        time.sleep(2)
+        for i in range(10):
+            print(i)
+            for event in pygame.event.get():
+                print(event)
+            time.sleep(0.5)
+            x, y = self.get_crosshair()
+            pyautogui.click()
+            self.clear_screen()
+            self.fpsClock.tick(10)
+        pygame.quit()
+        quit()
+
+    def click(self, x, y):
+        win32api.SetCursorPos((x, y))
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, x, y, 0, 0)
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, x, y, 0, 0)
+
+    def test_mouse_movement_and_shoot(self):
+        time.sleep(5)
+        for i in range(10):
+            print(i)
+            for event in pygame.event.get():
+                print(event)
+            x, y = self.get_crosshair()
+            self.set_crosshair_and_shoot(x + 100, y)
+            time.sleep(1)
+            self.fpsClock.tick(10)
+
+        pygame.quit()
+        quit()
+
 
 if __name__ == '__main__':
     service = ScreenManipulator()
@@ -302,5 +302,6 @@ if __name__ == '__main__':
     # service.test_screen_manipulation()
     # service.test_screen_capture()
     # service.test_mouse_movement()
-    # service.test_mouse_movement_and_shoot()
-    service.test_mouse_recording()
+    service.test_mouse_movement_and_shoot()
+    # service.test_mouse_click()
+    # service.test_mouse_recording()
