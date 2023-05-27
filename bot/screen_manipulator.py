@@ -90,7 +90,7 @@ class ScreenManipulator:
         command = pynput._util.win32.INPUT(ctypes.c_ulong(0), ii_)
         self.SendInput(1, ctypes.pointer(command), ctypes.sizeof(command))
 
-    def click_left_button(self):
+    def click_left_button(self, spray_time=0.5):
         # create left mouse button down event
         extra = ctypes.c_ulong(0)
         ii_ = pynput._util.win32.INPUT_union()
@@ -107,7 +107,7 @@ class ScreenManipulator:
 
         # send events to input queue
         self.SendInput(1, ctypes.pointer(command_down), ctypes.sizeof(command_down))
-        time.sleep(0.5)
+        time.sleep(spray_time)
         self.SendInput(1, ctypes.pointer(command_up), ctypes.sizeof(command_up))
         # pyautogui.click()
         for event in pygame.event.get():

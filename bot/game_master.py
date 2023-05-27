@@ -1,7 +1,9 @@
 import time
+from tkinter import *
 
 import cv2
 import keyboard
+import matplotlib.pyplot as plt
 import numpy as np
 import pygame
 from mss import tools
@@ -18,6 +20,9 @@ class GameMaster:
         self.clicks = 0
         self.engaged = False
         self.opponent_team = T
+        self.detection_times = []
+        self.strategize_times = []
+        self.aiming_times = []
 
     @staticmethod
     # Convert the ScreenShot from ScreenManipulator to a data type accepted by the model
@@ -77,7 +82,8 @@ class GameMaster:
         return w * h
 
     def get_distance_to_box(self, box):
-        start_x, start_y = self.screen_manipulator.get_crosshair()
+        # start_x, start_y = self.screen_manipulator.get_crosshair()
+        start_x, start_y = self.screen_manipulator.screen_width // 2, self.screen_manipulator.screen_height // 2
         dest_x, dest_y = self.get_box_aiming_point(box)
         # No need to compute the square root, adds unnecessary complexity
         # return int(math.sqrt((start_x - dest_x) ** 2 + (start_y - dest_y) ** 2))
@@ -113,11 +119,22 @@ class GameMaster:
 
     # Orders the boxes according to their distance to the player
     def proximal_box(self, bboxes):
-        bboxes.sort(key=lambda box: self.get_box_area(box), reversed=True)
+        bboxes.sort(key=lambda box: self.get_box_area(box), reverse=True)
         return bboxes
 
     # Strategy for prioritizing headshots and has as fallback the closest player box in case
-    def headshot_strategy(self, bboxes, opponent_team):
+    def headshot_only_strategy(self, bboxes, opponent_team):
+        bboxes = self.remove_allies(bboxes, opponent_team)
+        bboxes = self.remove_uncertain_predictions(bboxes, certainty_threshold=50)
+        bboxes = self.headshots_only(bboxes)
+        bboxes = self.closest_box(bboxes)
+        if len(bboxes) > 0:
+            return bboxes[0]
+        else:
+            return None
+
+    # Strategy for prioritizing headshots and has as fallback the closest player box in case
+    def headshot_priority_strategy(self, bboxes, opponent_team):
         bboxes = self.remove_allies(bboxes, opponent_team)
         bboxes = self.remove_uncertain_predictions(bboxes, certainty_threshold=50)
         bboxes = self.proximal_box(bboxes)
@@ -159,6 +176,7 @@ class GameMaster:
         else:
             chosen_box = aiming_strategy(bboxes, opponent_team)
         return chosen_box
+        # return aiming_strategy(bboxes, opponent_team)
 
     def grab_frame(self):
         frame = self.screen_manipulator.grab_frame()
@@ -211,13 +229,14 @@ class GameMaster:
                 time.sleep(delay)
             if draw_bboxes:
                 self.screen_manipulator.clear_screen()
-            if keyboard.is_pressed('f1'):
+
+            if keyboard.is_pressed('k'):
                 print(f"Clicks made: {self.clicks}")
                 pygame.quit()
                 quit()
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_F1:
+                    if event.key == pygame.K_k:
                         pygame.quit()
                         quit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
@@ -229,12 +248,13 @@ class GameMaster:
             # self.screen_manipulator.fpsClock.tick(60)
 
     def test_detection_speed_frame(self):
-        frame = self.screen_manipulator.grab_frame()
-        frame = self.mss_to_cv2(frame)
-        start = time.time()
-        self.object_detector.detect_in_frame(frame)
-        end = time.time()
-        print(end - start)
+        for _ in range(5):
+            frame = self.screen_manipulator.grab_frame()
+            frame = self.mss_to_cv2(frame)
+            start = time.time()
+            self.object_detector.detect_in_frame(frame)
+            end = time.time()
+            print(end - start)
 
     def test_integration_from_source(self):
         start = time.time()
@@ -277,18 +297,28 @@ class GameMaster:
         self.detect_continuous(ALL, self.fastest_kill_strategy, draw_bboxes=False, shoot=True)
 
     def demo(self):
-        self.detect_continuous(ALL, self.fastest_kill_strategy, draw_bboxes=True, shoot=True)
+        self.detect_continuous(ALL, self.headshot_priority_strategy, draw_bboxes=True, shoot=True)
 
     def test_shooting(self):
         self.screen_manipulator.test_mouse_movement_and_shoot()
 
-    def test_loop(self):
+    def play(self, shooting_strategy):
         while True:
             frame = self.grab_frame()
+            start = time.time()
             bboxes = self.object_detector.detect_in_frame(frame)
-            chosen_box = self.strategize(bboxes, 'ALL', self.fastest_kill_strategy)
+            end = time.time()
+            self.detection_times.append(end - start)
+            start = time.time()
+            # chosen_box = self.headshot_only_strategy(bboxes, 'ALL')
+            chosen_box = self.strategize(bboxes, 'ALL', shooting_strategy)
+            end = time.time()
+            self.strategize_times.append(end - start)
             if self.box_is_valid(chosen_box):
+                start = time.time()
                 self.set_crosshair_on_box(chosen_box, shoot=True)
+                end = time.time()
+                self.aiming_times.append(end - start)
                 self.engaged = True
             else:
                 self.engaged = False
@@ -309,14 +339,66 @@ class GameMaster:
             for event in pygame.event.get():
                 print(event)
             self.screen_manipulator.fpsClock.tick(10)
-        self.test_loop()
+        self.play(self.headshot_only_strategy)
+
+    def plot_detection_times(self):
+        plt.rcParams['figure.figsize'] = [35, 20]
+        plt.yticks(np.arange(0, max(self.detection_times) + 0.1, 0.05))
+        plt.plot(self.detection_times, color='magenta')  # plot the data
+        plt.xticks(range(0, len(self.detection_times) + 1, 1))  # set the tick frequency on x-axis
+
+        plt.ylabel('detection times in seconds')  # set the label for y axis
+        plt.xlabel('index')  # set the label for x-axis
+        plt.title("Detection times over a playing round")  # set the title of the graph
+        plt.savefig('plot_detection.png', bbox_inches='tight')
+        # plt.show()  # display the graph
+        plt.cla()
+        plt.clf()
+
+    def plot_strategize_times(self):
+        plt.rcParams['figure.figsize'] = [35, 20]
+        plt.yticks(np.arange(0, max(self.strategize_times) + 0.1, 0.001))
+        plt.plot(self.strategize_times, color='blue')  # plot the data
+        plt.xticks(range(0, len(self.strategize_times) + 1, 1))  # set the tick frequency on x-axis
+
+        plt.ylabel('strategizing times in seconds')  # set the label for y axis
+        plt.xlabel('index')  # set the label for x-axis
+        plt.title("Strategizing times times over a playing round")  # set the title of the graph
+        plt.savefig('plot_strategize.png', bbox_inches='tight')
+        # plt.show()  # display the graph
+        plt.cla()
+        plt.clf()
+
+    def plot_aiming_times(self):
+        plt.rcParams['figure.figsize'] = [35, 20]
+        plt.yticks(np.arange(0, max(self.aiming_times) + 0.1, 0.001))
+        plt.plot(self.aiming_times, color='red')  # plot the data
+        plt.xticks(range(0, len(self.aiming_times) + 1, 1))  # set the tick frequency on x-axis
+
+        plt.ylabel('aiming times in seconds')  # set the label for y axis
+        plt.xlabel('index')  # set the label for x-axis
+        plt.title("Aiming times over a playing round")  # set the title of the graph
+        plt.savefig('plot_aiming.png', bbox_inches='tight')
+        # plt.show()  # display the graph
+        plt.cla()
+        plt.clf()
+
 
 if __name__ == '__main__':
     master = GameMaster()
-    # master.demo()
-    # master.test_shooting()
-    # master.test_continuous()
-    # master.test_strategize()
     # master.test_detection_speed_frame()
-    # master.test_loop()
-    master.start_bot_on_command()
+    try:
+        # master.demo()
+        # master.test_shooting()
+        # master.test_continuous()
+        # master.test_strategize()
+        # master.play()
+        master.start_bot_on_command()
+    except KeyboardInterrupt:
+        print("Plotting...")
+        master.plot_detection_times()
+        master.plot_strategize_times()
+        master.plot_aiming_times()
+        print(f"Clicks made: {master.clicks}")
+        pygame.quit()
+        quit()
