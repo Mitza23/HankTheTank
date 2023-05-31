@@ -23,6 +23,7 @@ class GameMaster:
         self.detection_times = []
         self.strategize_times = []
         self.aiming_times = []
+        self.total_times = []
 
     @staticmethod
     # Convert the ScreenShot from ScreenManipulator to a data type accepted by the model
@@ -45,7 +46,7 @@ class GameMaster:
     #     x, y, w, h, c, _class = int(box[0]), int(box[1]), int(box[2] - box[0]), int(box[3] - box[1]), box[4], box[5]
     #     return x, y, w, h, c, _class
 
-    def set_crosshair_on_box(self, box, shoot):
+    def set_crosshair_on_box(self, box, shoot, spray_time=0.5):
         # Bounding box format: x_left, y_top, x_right, y_bottom, probability, class
         x, y, w, h, c, _class = self.screen_manipulator.unpack_box(box)
         x_center, y_center = int(box[2] + box[0]) / 2, int(box[3] + box[1]) / 2
@@ -56,7 +57,7 @@ class GameMaster:
             print("Body shot")
             crosshair_y -= h / 4
         if shoot:
-            self.screen_manipulator.set_crosshair_and_shoot(crosshair_x, crosshair_y)
+            self.screen_manipulator.set_crosshair_and_shoot(crosshair_x, crosshair_y, spray_time)
         else:
             self.screen_manipulator.set_crosshair(crosshair_x, crosshair_y)
 
@@ -122,7 +123,7 @@ class GameMaster:
         bboxes.sort(key=lambda box: self.get_box_area(box), reverse=True)
         return bboxes
 
-    # Strategy for prioritizing headshots and has as fallback the closest player box in case
+    # Strategy for only targeting headshots
     def headshot_only_strategy(self, bboxes, opponent_team):
         bboxes = self.remove_allies(bboxes, opponent_team)
         bboxes = self.remove_uncertain_predictions(bboxes, certainty_threshold=50)
@@ -224,9 +225,9 @@ class GameMaster:
         while True:
             self.detect_in_frame(opponent_team=opponent_team, aiming_strategy=aiming_strategy, draw_bboxes=draw_bboxes,
                                  shoot=shoot)
-            if self.engaged:
-                # Used to wait for the character to recover from recoil
-                time.sleep(delay)
+            # if self.engaged:
+            #     # Used to wait for the character to recover from recoil
+            #     time.sleep(delay)
             if draw_bboxes:
                 self.screen_manipulator.clear_screen()
 
@@ -297,13 +298,15 @@ class GameMaster:
         self.detect_continuous(ALL, self.fastest_kill_strategy, draw_bboxes=False, shoot=True)
 
     def demo(self):
-        self.detect_continuous(ALL, self.headshot_priority_strategy, draw_bboxes=True, shoot=True)
+        self.detect_continuous(ALL, self.fastest_kill_strategy, draw_bboxes=True, shoot=True)
 
     def test_shooting(self):
         self.screen_manipulator.test_mouse_movement_and_shoot()
 
-    def play(self, shooting_strategy):
+    def play(self, shooting_strategy, spray_time=0.7, draw_boxes=False):
         while True:
+            start_total = time.time()
+            self.screen_manipulator.clear_screen()
             frame = self.grab_frame()
             start = time.time()
             bboxes = self.object_detector.detect_in_frame(frame)
@@ -315,13 +318,18 @@ class GameMaster:
             end = time.time()
             self.strategize_times.append(end - start)
             if self.box_is_valid(chosen_box):
+                if draw_boxes:
+                    self.draw_boxes(bboxes, chosen_box)
+                    time.sleep(1)
                 start = time.time()
-                self.set_crosshair_on_box(chosen_box, shoot=True)
+                self.set_crosshair_on_box(chosen_box, shoot=True, spray_time=spray_time)
                 end = time.time()
                 self.aiming_times.append(end - start)
                 self.engaged = True
             else:
                 self.engaged = False
+            end_total = time.time()
+            self.total_times.append(end_total - start_total)
 
     def test_key_triggers(self):
         while True:
@@ -339,7 +347,7 @@ class GameMaster:
             for event in pygame.event.get():
                 print(event)
             self.screen_manipulator.fpsClock.tick(10)
-        self.play(self.headshot_only_strategy)
+        self.play(self.fastest_kill_strategy, spray_time=0.7)
 
     def plot_detection_times(self):
         plt.rcParams['figure.figsize'] = [35, 20]
@@ -383,6 +391,20 @@ class GameMaster:
         plt.cla()
         plt.clf()
 
+    def plot_total_times(self):
+        plt.rcParams['figure.figsize'] = [35, 20]
+        plt.yticks(np.arange(0, max(self.total_times) + 0.1, 0.05))
+        plt.plot(self.total_times, color='orange')  # plot the data
+        plt.xticks(range(0, len(self.total_times) + 1, 1))  # set the tick frequency on x-axis
+
+        plt.ylabel('aiming times in seconds')  # set the label for y axis
+        plt.xlabel('index')  # set the label for x-axis
+        plt.title("Cycle running times over a playing round")  # set the title of the graph
+        plt.savefig('plot_total.png', bbox_inches='tight')
+        # plt.show()  # display the graph
+        plt.cla()
+        plt.clf()
+
 
 if __name__ == '__main__':
     master = GameMaster()
@@ -399,6 +421,7 @@ if __name__ == '__main__':
         master.plot_detection_times()
         master.plot_strategize_times()
         master.plot_aiming_times()
+        master.plot_total_times()
         print(f"Clicks made: {master.clicks}")
         pygame.quit()
         quit()

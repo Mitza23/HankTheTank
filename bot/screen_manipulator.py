@@ -114,9 +114,9 @@ class ScreenManipulator:
             print(event)
         print('SHOT FIRED')
 
-    def set_crosshair_and_shoot(self, x, y):
+    def set_crosshair_and_shoot(self, x, y, spray_time=0):
         self.set_crosshair(x, y)
-        self.click_left_button()
+        self.click_left_button(spray_time)
 
     def draw_text(self, text, x, y, background_color=green, text_color=blue, text_size=13):
         font = pygame.font.Font('freesansbold.ttf', text_size)
@@ -138,7 +138,8 @@ class ScreenManipulator:
             if draw_aiming_point:
                 if _class in [CT, T]:
                     pygame.draw.circle(self.screen, color=red, center=(x + w // 2, y + h // 4), radius=3)
-                pygame.draw.circle(self.screen, color=red, center=(x + w // 2, y + h // 2), radius=3)
+                else:
+                    pygame.draw.circle(self.screen, color=red, center=(x + w // 2, y + h // 2), radius=3)
             pygame.display.update()
 
     def draw_line_to_box(self, box, color=cyan, width=5):
