@@ -347,7 +347,7 @@ class GameMaster:
             for event in pygame.event.get():
                 print(event)
             self.screen_manipulator.fpsClock.tick(10)
-        self.play(self.fastest_kill_strategy, spray_time=0.7)
+        self.play(self.fastest_kill_strategy, spray_time=0.5, draw_boxes=False)
 
     def plot_detection_times(self):
         plt.rcParams['figure.figsize'] = [35, 20]
