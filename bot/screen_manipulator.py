@@ -125,6 +125,11 @@ class ScreenManipulator:
         textRect.center = (x, y)
         self.screen.blit(fontText, textRect)
 
+    def draw_banner(self, text):
+        self.clear_screen()
+        self.draw_text(text, self.screen_width / 2, 75, background_color=fuchsia, text_color=(0, 255, 0), text_size=64)
+        pygame.display.update()
+
     def draw_boxes(self, bboxes, box_text='', box_color=green, text_color=white, draw_aiming_point=True, text_size=13):
         for box in bboxes:
             # bbox x_left, y_top, x_right, y_bottom

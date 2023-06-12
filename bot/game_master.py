@@ -20,6 +20,10 @@ class GameMaster:
         self.clicks = 0
         self.engaged = False
         self.opponent_team = T
+        self.aiming_strategy = self.fastest_kill_strategy
+        self.draw = False
+        self.spray_time = 0.5
+        self.display_counter = 0
         self.detection_times = []
         self.strategize_times = []
         self.aiming_times = []
@@ -305,8 +309,19 @@ class GameMaster:
 
     def play(self, shooting_strategy, spray_time=0.7, draw_boxes=False):
         while True:
+            # Process user input
+            display_banner = self.get_key_triggers()
+            if display_banner:
+                self.display_counter = 5
+            elif not display_banner and self.display_counter > 0:
+                self.display_counter -= 1
+
+            if self.display_counter == 0:
+                self.screen_manipulator.clear_screen()
+                self.display_counter = -1
+
             start_total = time.time()
-            self.screen_manipulator.clear_screen()
+            # self.screen_manipulator.clear_screen()
             frame = self.grab_frame()
             start = time.time()
             bboxes = self.object_detector.detect_in_frame(frame)
@@ -314,13 +329,14 @@ class GameMaster:
             self.detection_times.append(end - start)
             start = time.time()
             # chosen_box = self.headshot_only_strategy(bboxes, 'ALL')
-            chosen_box = self.strategize(bboxes, 'ALL', shooting_strategy)
+            chosen_box = self.strategize(bboxes, self.opponent_team, self.aiming_strategy)
             end = time.time()
             self.strategize_times.append(end - start)
             if self.box_is_valid(chosen_box):
-                if draw_boxes:
+                if self.draw:
                     self.draw_boxes(bboxes, chosen_box)
                     time.sleep(1)
+                    self.screen_manipulator.clear_screen()
                 start = time.time()
                 self.set_crosshair_on_box(chosen_box, shoot=True, spray_time=spray_time)
                 end = time.time()
@@ -330,24 +346,91 @@ class GameMaster:
                 self.engaged = False
             end_total = time.time()
             self.total_times.append(end_total - start_total)
+            if keyboard.is_pressed('k'):
+                self.screen_manipulator.draw_banner("Hank stopped")
+                time.sleep(1)
+                break
 
     def test_key_triggers(self):
         while True:
-            if keyboard.is_pressed('k'):
+            if keyboard.is_pressed('f9'):
                 print('You Pressed k!')
+                self.screen_manipulator.draw_banner("TEST")
             for event in pygame.event.get():
                 print(event)
             self.screen_manipulator.fpsClock.tick(10)
             # break
 
+    def change_opponent_team(self):
+        opponents = ''
+        if self.opponent_team == T:
+            self.opponent_team = CT
+            opponents = 'CT'
+        elif self.opponent_team == CT:
+            self.opponent_team = ALL
+            opponents = 'ALL'
+        else:
+            self.opponent_team = T
+            opponents = 'T'
+
+        self.screen_manipulator.draw_banner(f'Targeting: {opponents} players')
+
+    def change_aiming_strategy(self):
+        if self.aiming_strategy == self.fastest_kill_strategy:
+            self.aiming_strategy = self.headshot_only_strategy
+        elif self.aiming_strategy == self.headshot_only_strategy:
+            self.aiming_strategy = self.proximal_strategy
+        else:
+            self.aiming_strategy = self.fastest_kill_strategy
+        self.screen_manipulator.draw_banner(f'Aiming strategy: {self.aiming_strategy.__name__}')
+
+    def toggle_drawing_boxes(self):
+        self.draw = not self.draw
+        self.screen_manipulator.draw_banner(f'Drawing boxes: {self.draw}')
+
+    def change_spray_time(self):
+        self.spray_time += 0.1
+        if self.spray_time > 1.0:
+            self.spray_time = 0
+        self.screen_manipulator.draw_banner(f'Spray time: {self.spray_time}')
+
+    def get_key_triggers(self):
+        display_banner = False
+        try:
+            if keyboard.is_pressed('f1'):
+                self.change_opponent_team()
+                display_banner = True
+                cv2.waitKey(10)
+            elif keyboard.is_pressed('f2'):
+                self.change_aiming_strategy()
+                display_banner = True
+                cv2.waitKey(10)
+            elif keyboard.is_pressed('f3'):
+                self.toggle_drawing_boxes()
+                display_banner = True
+                cv2.waitKey(10)
+            elif keyboard.is_pressed('f4'):
+                self.change_spray_time()
+                display_banner = True
+                cv2.waitKey(10)
+            for event in pygame.event.get():
+                print(event)
+        except:
+            return False
+        return display_banner
+
     def start_bot_on_command(self):
         while True:
             if keyboard.is_pressed('k'):
+                print('Starting Hank')
+                self.screen_manipulator.draw_banner("Hank is here")
+                time.sleep(0.3)
+                self.play(self.aiming_strategy, spray_time=self.spray_time, draw_boxes=self.draw)
+            elif keyboard.is_pressed('q'):
                 break
             for event in pygame.event.get():
                 print(event)
-            self.screen_manipulator.fpsClock.tick(10)
-        self.play(self.fastest_kill_strategy, spray_time=0.5, draw_boxes=False)
+            self.screen_manipulator.fpsClock.tick(30)
 
     def plot_detection_times(self):
         plt.rcParams['figure.figsize'] = [35, 20]
@@ -414,6 +497,7 @@ class GameMaster:
 
 if __name__ == '__main__':
     master = GameMaster()
+    # master.test_key_triggers()
     # master.test_detection_speed_frame()
     try:
         # master.demo()
