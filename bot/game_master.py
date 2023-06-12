@@ -358,6 +358,9 @@ class GameMaster:
         plt.ylabel('detection times in seconds')  # set the label for y axis
         plt.xlabel('index')  # set the label for x-axis
         plt.title("Detection times over a playing round")  # set the title of the graph
+        average = sum(self.detection_times) / len(self.detection_times)
+        print("Average detection time: " + str(average))
+        plt.axhline(y=average, color='green', linestyle='-')
         plt.savefig('plot_detection.png', bbox_inches='tight')
         # plt.show()  # display the graph
         plt.cla()
@@ -397,9 +400,12 @@ class GameMaster:
         plt.plot(self.total_times, color='orange')  # plot the data
         plt.xticks(range(0, len(self.total_times) + 1, 1))  # set the tick frequency on x-axis
 
-        plt.ylabel('aiming times in seconds')  # set the label for y axis
+        plt.ylabel('cycle times in seconds')  # set the label for y axis
         plt.xlabel('index')  # set the label for x-axis
         plt.title("Cycle running times over a playing round")  # set the title of the graph
+        average = sum(self.total_times) / len(self.total_times)
+        print("total average: ", average)
+        plt.axhline(y=average, color='green', linestyle='-')
         plt.savefig('plot_total.png', bbox_inches='tight')
         # plt.show()  # display the graph
         plt.cla()
