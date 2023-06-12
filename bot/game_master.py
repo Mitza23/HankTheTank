@@ -19,7 +19,7 @@ class GameMaster:
         self.screen_manipulator = ScreenManipulator()
         self.clicks = 0
         self.engaged = False
-        self.opponent_team = T
+        self.opponent_team = ALL
         self.aiming_strategy = self.fastest_kill_strategy
         self.draw = False
         self.spray_time = 0.5
@@ -309,7 +309,7 @@ class GameMaster:
 
     def play(self, shooting_strategy, spray_time=0.7, draw_boxes=False):
         while True:
-            # Process user input
+            # Process user input Average detection time: 0.31920754507686316
             display_banner = self.get_key_triggers()
             if display_banner:
                 self.display_counter = 5
