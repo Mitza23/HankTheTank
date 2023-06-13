@@ -348,6 +348,7 @@ class GameMaster:
             self.total_times.append(end_total - start_total)
             if keyboard.is_pressed('k'):
                 self.screen_manipulator.draw_banner("Hank stopped")
+                print("Hank stopped")
                 time.sleep(1)
                 break
 
@@ -427,6 +428,7 @@ class GameMaster:
                 time.sleep(0.3)
                 self.play(self.aiming_strategy, spray_time=self.spray_time, draw_boxes=self.draw)
             elif keyboard.is_pressed('q'):
+                print("Shutting down Hank")
                 break
             for event in pygame.event.get():
                 print(event)
@@ -495,23 +497,35 @@ class GameMaster:
         plt.clf()
 
 
-if __name__ == '__main__':
-    master = GameMaster()
-    # master.test_key_triggers()
-    # master.test_detection_speed_frame()
+def start():
+    game_master = GameMaster()
     try:
-        # master.demo()
-        # master.test_shooting()
-        # master.test_continuous()
-        # master.test_strategize()
-        # master.play()
-        master.start_bot_on_command()
-    except KeyboardInterrupt:
-        print("Plotting...")
-        master.plot_detection_times()
-        master.plot_strategize_times()
-        master.plot_aiming_times()
-        master.plot_total_times()
-        print(f"Clicks made: {master.clicks}")
+        game_master.start_bot_on_command()
         pygame.quit()
         quit()
+    except KeyboardInterrupt:
+        pygame.quit()
+        quit()
+
+
+if __name__ == '__main__':
+    start()
+    # master = GameMaster()
+    # # master.test_key_triggers()
+    # # master.test_detection_speed_frame()
+    # try:
+    #     # master.demo()
+    #     # master.test_shooting()
+    #     # master.test_continuous()
+    #     # master.test_strategize()
+    #     # master.play()
+    #     master.start_bot_on_command()
+    # except KeyboardInterrupt:
+    #     print("Plotting...")
+    #     master.plot_detection_times()
+    #     master.plot_strategize_times()
+    #     master.plot_aiming_times()
+    #     master.plot_total_times()
+    #     print(f"Clicks made: {master.clicks}")
+    #     pygame.quit()
+    #     quit()

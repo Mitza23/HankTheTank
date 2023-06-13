@@ -20,3 +20,7 @@ python train.py --epochs 100 --workers 4 --device 0 --batch-size 16 --data data/
 
 
 python detect.py --weights best.pt  --source test_images/230.jpg  --no-trace --conf 0.5 --save-txt
+
+Usage:
+ .\venv\Scripts\activate
+ hank

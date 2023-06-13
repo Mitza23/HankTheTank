@@ -10,7 +10,7 @@ import win32con
 import win32gui
 from mss import mss, tools
 
-from constants import fuchsia, WINDOW, green, blue, \
+from bot.constants import fuchsia, WINDOW, green, blue, \
     NOT_TOPMOST, NO_MOVE, NO_SIZE, TOPMOST, red, screen_width_4k, screen_height_4k, \
     cyan, white, CT, T
 

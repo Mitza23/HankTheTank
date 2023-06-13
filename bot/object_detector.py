@@ -11,7 +11,7 @@ from utils.torch_utils import select_device, time_synchronized
 
 class ObjectDetector:
     def __init__(self):
-        self.weights_path = '../best.pt'
+        self.weights_path = 'best.pt'
         self.image_size = 640
         self.confidence_threshold = 0.5
         self.iou_threshold = 0.45
