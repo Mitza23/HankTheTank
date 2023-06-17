@@ -151,6 +151,8 @@ class ScreenManipulator:
         x, y, w, h, c, _class = self.unpack_box(box)
         start = self.get_crosshair()
         end = x + w // 2, y + h // 2
+        if _class in [CT, T]:
+            end = x + w // 2, y + h // 4
         pygame.draw.line(self.screen, start_pos=start, end_pos=end, color=color, width=width)
         pygame.display.update()
 

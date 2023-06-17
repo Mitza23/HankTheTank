@@ -1,5 +1,4 @@
 import time
-from tkinter import *
 
 import cv2
 import keyboard
@@ -8,9 +7,12 @@ import numpy as np
 import pygame
 from mss import tools
 
-from bot.constants import red, CT, T, CT_HEAD, T_HEAD, ALL
+from bot.constants import red, CT, T, CT_HEAD, T_HEAD, ALL, green
 from bot.object_detector import ObjectDetector
 from bot.screen_manipulator import ScreenManipulator
+
+
+# from tkinter import *
 
 
 class GameMaster:
@@ -87,8 +89,8 @@ class GameMaster:
         return w * h
 
     def get_distance_to_box(self, box):
-        # start_x, start_y = self.screen_manipulator.get_crosshair()
-        start_x, start_y = self.screen_manipulator.screen_width // 2, self.screen_manipulator.screen_height // 2
+        start_x, start_y = self.screen_manipulator.get_crosshair()
+        # start_x, start_y = self.screen_manipulator.screen_width // 2, self.screen_manipulator.screen_height // 2
         dest_x, dest_y = self.get_box_aiming_point(box)
         # No need to compute the square root, adds unnecessary complexity
         # return int(math.sqrt((start_x - dest_x) ** 2 + (start_y - dest_y) ** 2))
@@ -191,7 +193,9 @@ class GameMaster:
     def draw_boxes(self, bboxes, chosen_box):
         self.screen_manipulator.draw_boxes(bboxes)
         self.screen_manipulator.draw_boxes([chosen_box], box_color=red)
-        self.screen_manipulator.draw_line_to_box(chosen_box)
+        for box in bboxes:
+            self.screen_manipulator.draw_line_to_box(box, color=green)
+        self.screen_manipulator.draw_line_to_box(chosen_box, color=red)
 
     def detect_in_frame(self, opponent_team, aiming_strategy, draw_bboxes, shoot, demo_time=1):
         _start = time.time()
@@ -225,32 +229,6 @@ class GameMaster:
         end = time.time()
         print(f'total: {end - _start}')
 
-    def detect_continuous(self, opponent_team, aiming_strategy, draw_bboxes, shoot, delay=0.01):
-        while True:
-            self.detect_in_frame(opponent_team=opponent_team, aiming_strategy=aiming_strategy, draw_bboxes=draw_bboxes,
-                                 shoot=shoot)
-            # if self.engaged:
-            #     # Used to wait for the character to recover from recoil
-            #     time.sleep(delay)
-            if draw_bboxes:
-                self.screen_manipulator.clear_screen()
-
-            if keyboard.is_pressed('k'):
-                print(f"Clicks made: {self.clicks}")
-                pygame.quit()
-                quit()
-            for event in pygame.event.get():
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_k:
-                        pygame.quit()
-                        quit()
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    self.clicks += 1
-                if event.type == pygame.QUIT:
-                    print(f"Clicks made: {self.clicks}")
-                    pygame.quit()
-                    quit()
-            # self.screen_manipulator.fpsClock.tick(60)
 
     def test_detection_speed_frame(self):
         for _ in range(5):
@@ -298,11 +276,22 @@ class GameMaster:
         self.engaged = False
         self.strategize(bboxes, opponent_team, self.fastest_kill_strategy)
 
-    def test_continuous(self):
-        self.detect_continuous(ALL, self.fastest_kill_strategy, draw_bboxes=False, shoot=True)
-
     def demo(self):
-        self.detect_continuous(ALL, self.fastest_kill_strategy, draw_bboxes=True, shoot=True)
+        while True:
+            frame = self.grab_frame()
+            bboxes = self.object_detector.detect_in_frame(frame)
+            chosen_box = self.strategize(bboxes, ALL, self.fastest_kill_strategy)
+            if self.box_is_valid(chosen_box):
+                self.screen_manipulator.clear_screen()
+                self.draw_boxes(bboxes, chosen_box)
+                print("Boxes drawn")
+                # time.sleep(3)
+                # self.set_crosshair_on_box(chosen_box, shoot=False, spray_time=0)
+                self.engaged = True
+            else:
+                self.engaged = False
+            for event in pygame.event.get():
+                print(event)
 
     def test_shooting(self):
         self.screen_manipulator.test_mouse_movement_and_shoot()
@@ -509,8 +498,9 @@ def start():
 
 
 if __name__ == '__main__':
-    start()
-    # master = GameMaster()
+    # start()
+    master = GameMaster()
+    master.demo()
     # # master.test_key_triggers()
     # # master.test_detection_speed_frame()
     # try:
